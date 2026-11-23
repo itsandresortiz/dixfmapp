@@ -25,7 +25,13 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "version": "3.0.0",
-      "versionCode": 3000000
+      "versionCode": 3000000,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
