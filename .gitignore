@@ -42,3 +42,4 @@ yarn-error.*
 
 # builds locales
 /build
+.ios-build.env
