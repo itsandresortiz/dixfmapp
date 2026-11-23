@@ -1,9 +1,10 @@
+import MaskedViewBase from '@react-native-masked-view/masked-view';
 import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
@@ -121,6 +122,39 @@ export function Ambient({ art }: { art?: string }) {
       </Animated.View>
       <LinearGradient colors={['rgba(13,8,32,0.32)', 'rgba(13,8,32,0.74)']} style={StyleSheet.absoluteFill} />
     </View>
+  );
+}
+
+// Los tipos del paquete aún no encajan con React 19.
+const MaskedView = MaskedViewBase as unknown as ComponentType<{
+  style?: StyleProp<ViewStyle>;
+  maskElement: ReactElement;
+  children?: ReactNode;
+}>;
+
+const FADE = ['transparent', 'rgba(0,0,0,0.3)', '#000', '#000', 'rgba(0,0,0,0.3)', 'transparent'] as const;
+const FADE_X = [0, 0.06, 0.2, 0.8, 0.94, 1] as const;
+const FADE_Y = [0, 0.07, 0.24, 0.66, 0.88, 1] as const;
+const WEB_MASK =
+  'linear-gradient(to right, transparent, rgba(0,0,0,.3) 6%, #000 20%, #000 80%, rgba(0,0,0,.3) 94%, transparent), ' +
+  'linear-gradient(to bottom, transparent, rgba(0,0,0,.3) 7%, #000 24%, #000 66%, rgba(0,0,0,.3) 88%, transparent)';
+
+/** Difumina los cuatro bordes de su contenido para que se funda con el fondo. */
+export function Feather({ style, children }: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
+  if (Platform.OS === 'web') {
+    const mask = { maskImage: WEB_MASK, WebkitMaskImage: WEB_MASK, maskComposite: 'intersect', WebkitMaskComposite: 'source-in' };
+    return <View style={[style, mask as ViewStyle]}>{children}</View>;
+  }
+  return (
+    <MaskedView
+      style={style}
+      maskElement={<LinearGradient colors={FADE} locations={FADE_X} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />}>
+      <MaskedView
+        style={StyleSheet.absoluteFill}
+        maskElement={<LinearGradient colors={FADE} locations={FADE_Y} style={StyleSheet.absoluteFill} />}>
+        {children}
+      </MaskedView>
+    </MaskedView>
   );
 }
 

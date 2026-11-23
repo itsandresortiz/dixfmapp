@@ -12,7 +12,7 @@ import { SleepSheet, SongsSheet } from './src/Sheets';
 import { STATION, TAGLINE, colors, fonts } from './src/config';
 import { useNowPlaying } from './src/nowPlaying';
 import { useRadio, type RadioState } from './src/useRadio';
-import { Ambient, Glass, Intro, Press, Waveform } from './src/ui';
+import { Ambient, Feather, Glass, Intro, Press, Waveform } from './src/ui';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -44,13 +44,18 @@ function Player() {
   const [minutesLeft, setMinutesLeft] = useState(0);
   const [coverBox, setCoverBox] = useState({ width: 0, height: 0 });
 
+  // Dos paneles en horizontal y en pantallas anchas (tabletas, plegables abiertos).
+  const { width, height } = useWindowDimensions();
+  const twoPane = width > height || width >= 700;
+  const roomy = twoPane && height >= 600; // con altura de sobra, el contenido se agrupa en el centro
+
   // La carátula crece cuando suena y se encoge en pausa.
-  const coverScale = useSharedValue(0.82);
+  const coverScale = useSharedValue(0.9);
   useEffect(() => {
-    coverScale.value = withSpring(radio.state === 'playing' ? 1 : 0.82, { damping: 14, stiffness: 120 });
+    coverScale.value = withSpring(radio.state === 'playing' ? 1 : 0.9, { damping: 16, stiffness: 110 });
   }, [radio.state, coverScale]);
-  const coverStyle = useAnimatedStyle(() => ({ transform: [{ scale: coverScale.value }] }));
-  const coverSize = Math.max(0, Math.min(coverBox.width, coverBox.height - 24, 520));
+  const coverStyle = useAnimatedStyle(() => ({ transform: [{ scale: coverScale.value }], opacity: 0.55 + (coverScale.value - 0.9) * 4.5 }));
+  const coverSize = Math.max(0, Math.min(coverBox.width, coverBox.height, 640));
 
   // Temporizador de apagado
   const { stop } = radio;
@@ -82,10 +87,6 @@ function Player() {
 
   const busy = radio.state === 'loading' || radio.state === 'error';
 
-  const { width, height } = useWindowDimensions();
-  const landscape = width > height;
-  const roomy = landscape && height >= 600; // tabletas: el contenido se agrupa en el centro
-
   const brand = <Image source={logoWhite} style={styles.brand} contentFit="contain" accessibilityLabel={STATION} accessibilityRole="header" />;
 
   const status = (
@@ -101,19 +102,25 @@ function Player() {
     </View>
   );
 
+  // La carátula no es una tarjeta: sus bordes se difuminan hasta fundirse con el fondo.
   const cover = (
-    <View style={styles.coverBox} onLayout={(e) => setCoverBox(e.nativeEvent.layout)}>
-      <Animated.View style={[styles.cover, { width: coverSize, height: coverSize, borderRadius: coverSize * 0.09 }, coverStyle]}>
-        <View style={[styles.coverInner, { borderRadius: coverSize * 0.09 }]}>
-          <Image source={logo} style={styles.coverLogo} contentFit="contain" />
-          <Image
-            source={song?.art ? { uri: song.art } : null}
-            placeholder={song?.thumb ? { uri: song.thumb } : null}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            transition={500}
-          />
-        </View>
+    <View style={[styles.coverBox, !twoPane && styles.coverBleed]} onLayout={(e) => setCoverBox(e.nativeEvent.layout)}>
+      <Animated.View style={[{ width: coverSize, height: coverSize }, coverStyle]}>
+        {song?.art ? (
+          <Feather style={StyleSheet.absoluteFill}>
+            <Image
+              source={{ uri: song.art }}
+              placeholder={song.thumb ? { uri: song.thumb } : null}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={600}
+            />
+          </Feather>
+        ) : (
+          <View style={styles.coverEmpty}>
+            <Image source={logo} style={styles.coverLogo} contentFit="contain" />
+          </View>
+        )}
       </Animated.View>
     </View>
   );
@@ -152,11 +159,11 @@ function Player() {
         )}
       </Press>
 
-      <Press onPress={radio.toggle} label={active ? 'Pausar' : 'Reproducir'} style={[styles.play, landscape && styles.playLand]}>
+      <Press onPress={radio.toggle} label={active ? 'Pausar' : 'Reproducir'} style={[styles.play, twoPane && styles.playLand]}>
         {busy ? (
           <ActivityIndicator color={colors.ink} size="large" />
         ) : (
-          <Ionicons name={active ? 'pause' : 'play'} size={landscape ? 32 : 38} color={colors.ink} style={!active && styles.playNudge} />
+          <Ionicons name={active ? 'pause' : 'play'} size={twoPane ? 32 : 38} color={colors.ink} style={!active && styles.playNudge} />
         )}
       </Press>
 
@@ -169,8 +176,8 @@ function Player() {
   );
 
   const songs = (
-    <Press onPress={() => setSongsOpen(true)} label="Canciones" style={landscape ? undefined : styles.songsWrap}>
-      <Glass style={[styles.songs, landscape && styles.songsLand]}>
+    <Press onPress={() => setSongsOpen(true)} label="Canciones" style={twoPane ? undefined : styles.songsWrap}>
+      <Glass style={[styles.songs, twoPane && styles.songsLand]}>
         <Text style={styles.songsText}>Canciones</Text>
       </Glass>
     </Press>
@@ -180,7 +187,7 @@ function Player() {
     <View style={styles.root}>
       <Ambient art={song?.thumb} />
 
-      {landscape ? (
+      {twoPane ? (
         // Horizontal: carátula a la izquierda, todo lo demás en una columna a la derecha.
         <View
           style={[
@@ -261,22 +268,15 @@ const styles = StyleSheet.create({
   landMiddle: { flex: 1, justifyContent: 'center', gap: 8 },
   playLand: { width: 72, height: 72, borderRadius: 36 },
   songsLand: { paddingVertical: 9, paddingHorizontal: 18 },
-  top: { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  top: { height: 52, zIndex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brand: { width: 76, height: 30 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.text3 },
   statusText: { color: colors.text2, fontSize: 13, fontWeight: '600' },
   coverBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  cover: {
-    backgroundColor: colors.ink,
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 22 },
-    elevation: 18,
-  },
-  coverInner: { flex: 1, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink },
-  coverLogo: { width: '66%', height: '40%' },
+  coverBleed: { marginHorizontal: -28, marginTop: -34, marginBottom: -10 },
+  coverEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  coverLogo: { width: '62%', height: '36%' },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 16, minHeight: 64 },
   metaText: { flex: 1, minWidth: 0 },
   title: { color: '#fff', fontFamily: fonts.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.4 },
