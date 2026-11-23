@@ -57,17 +57,19 @@ El script pone un número de compilación nuevo en cada ejecución. Para publica
 
 ## Compilar Android
 
-APK para instalar y probar:
+Requiere Java 17 y el SDK de Android. APK para instalar y probar:
 
 ```bash
 ./scripts/build-android.sh
 ```
 
-Para Google Play hace falta un AAB firmado con tu clave de subida. Lo más simple es dejar que Expo la gestione:
+AAB firmado para Google Play (paquete `dix.fm`):
 
 ```bash
-npx eas-cli@latest build --platform android
+./scripts/build-android.sh aab
 ```
+
+La primera vez crea tu clave de subida en `~/dixfm-upload.jks` (fuera del proyecto) y deja su certificado en `build/upload_certificate.pem`, que es lo que Google pide para registrarla. Guarda una copia de la clave y su contraseña: sin ellas no se pueden publicar actualizaciones. El código de versión se genera solo y sube en cada compilación.
 
 Cada push también compila en GitHub Actions: el APK de prueba queda como artefacto del workflow "Build".
 

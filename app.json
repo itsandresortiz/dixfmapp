@@ -24,7 +24,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "version": "3.0.0"
+      "version": "3.0.0",
+      "versionCode": 3000000
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -69,7 +70,8 @@
             }
           ]
         }
-      ]
+      ],
+      "./plugins/withAndroidSigning"
     ]
   }
 }

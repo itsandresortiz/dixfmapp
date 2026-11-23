@@ -43,3 +43,6 @@ yarn-error.*
 # builds locales
 /build
 .ios-build.env
+.android-build.env
+*.jks
+*.keystore

@@ -1,6 +1,11 @@
 // Amplía app.json con valores que dependen de quien compila.
 module.exports = ({ config }) => ({
   ...config,
+  android: {
+    ...config.android,
+    // Código de versión de Google Play; debe subir en cada publicación.
+    ...(process.env.ANDROID_VERSION_CODE ? { versionCode: Number(process.env.ANDROID_VERSION_CODE) } : {}),
+  },
   ios: {
     ...config.ios,
     // Team ID de Apple Developer, para firmar al compilar por terminal.
