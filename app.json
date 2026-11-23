@@ -17,7 +17,7 @@
       }
     },
     "android": {
-      "package": "com.dixfm.app",
+      "package": "dix.fm",
       "adaptiveIcon": {
         "backgroundColor": "#0d0820",
         "foregroundImage": "./assets/android-icon-foreground.png",

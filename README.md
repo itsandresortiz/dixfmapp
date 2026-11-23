@@ -18,7 +18,7 @@ App nativa de Dix FM para iOS y Android, hecha con Expo (React Native): un solo 
 
 - `App.tsx` y `src/`: la app. El stream, los textos y los colores están en `src/config.ts`.
 - `assets/`: icono, splash y logo.
-- `app.json`: nombre, identificador (`com.dixfm.app`) y permisos.
+- `app.json`: nombre, identificadores (iOS `com.dixfm.app`, Android `dix.fm`) y permisos.
 - `modules/airplay-button/`: módulo nativo del botón de AirPlay.
 - `scripts/`: compilación por terminal.
 - `web/`: versión web instalable (PWA), independiente de la app nativa.
