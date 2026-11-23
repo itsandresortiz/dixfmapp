@@ -49,7 +49,7 @@ Para enviarlo directo a TestFlight con una clave de API de App Store Connect:
 UPLOAD=1 ./scripts/build-ios.sh
 ```
 
-Antes de cada subida nueva, aumenta `version` en `app.json` (o añade `ios.buildNumber`): App Store Connect rechaza números de compilación repetidos.
+El script pone un número de compilación nuevo en cada ejecución. Para publicar una versión nueva en la tienda, aumenta `version` en `app.json`.
 
 ## Compilar Android
 

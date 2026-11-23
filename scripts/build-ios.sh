@@ -22,6 +22,9 @@ ask() { # ask VARIABLE "pregunta"
   printf -v "$1" '%s' "$value"
 }
 
+# Compatibilidad con la variable TEAM_ID de otros proyectos.
+APPLE_TEAM_ID="${APPLE_TEAM_ID:-${TEAM_ID:-}}"
+
 # Team ID: va entre paréntesis en el nombre de tus certificados de distribución.
 if [ -z "${APPLE_TEAM_ID:-}" ]; then
   TEAMS=$(security find-identity -v -p codesigning 2>/dev/null | grep Distribution | sed -n 's/.*(\([A-Z0-9]\{10\}\))".*/\1/p' | sort -u)
@@ -63,6 +66,9 @@ fi
   [ -n "${ASC_ISSUER_ID:-}" ] && echo "ASC_ISSUER_ID=\"$ASC_ISSUER_ID\""
   true
 } > "$CONFIG"
+
+# Número de compilación único (fecha y hora): App Store Connect rechaza repetidos.
+export IOS_BUILD_NUMBER="${IOS_BUILD_NUMBER:-$(date +%y%m%d%H%M)}"
 
 npm install
 npx expo prebuild --platform ios --clean
@@ -107,6 +113,7 @@ echo
 if [ "$DESTINATION" = "upload" ]; then
   echo "Listo. La compilación se envió a App Store Connect; aparecerá en TestFlight cuando Apple termine de procesarla."
 else
-  echo "Listo. Arrastra este archivo a Transporter:"
+  echo "Listo (compilación $IOS_BUILD_NUMBER). Se abre Transporter con el archivo:"
   ls "$BUILD_DIR"/ipa/*.ipa
+  open -a Transporter "$BUILD_DIR"/ipa/*.ipa || echo "No se pudo abrir Transporter: arrastra el .ipa a mano."
 fi
