@@ -1,33 +1,64 @@
 # Dix FM
 
-App web instalable (PWA) para escuchar Dix FM en vivo. Sin dependencias ni paso de compilación: son archivos estáticos.
+App nativa de Dix FM para iOS y Android, hecha con Expo (React Native): un solo código, interfaz y audio nativos.
 
 ## Qué incluye
 
-- Reproducción en directo con reconexión automática si se cae la señal.
-- Canción en curso, carátula y enlace a Apple Music (búsqueda de iTunes).
-- Fondo que toma los colores de la carátula y onda que reacciona al audio.
-- Controles en la pantalla de bloqueo, auriculares y coche (Media Session).
+- Radio en directo con audio nativo: sigue sonando en segundo plano y con la pantalla bloqueada.
+- Controles y carátula en la pantalla de bloqueo, auriculares y coche.
+- Canción en curso, carátula y enlace a Apple Music.
+- Fondo que toma los colores de la carátula; Liquid Glass en los iPhone que lo soportan.
 - Canciones recientes, favoritas, temporizador de apagado y compartir.
-- Instalable en iPhone, Android y escritorio; la interfaz abre sin conexión.
+- Reconexión automática si se cae la señal.
 
-## Probarla en local
+## Estructura
+
+- `App.tsx` y `src/`: la app. El stream, los textos y los colores están en `src/config.ts`.
+- `assets/`: icono, splash y logo.
+- `app.json`: nombre, identificador (`com.dixfm.app`) y permisos.
+- `scripts/`: compilación por terminal.
+- `web/`: versión web instalable (PWA), independiente de la app nativa.
+
+## Probar mientras desarrollas
 
 ```bash
-python3 -m http.server 8080
+npm install
 ```
 
-Luego abre `http://localhost:8080`.
+```bash
+npx expo run:ios
+```
 
-## Publicarla
+```bash
+npx expo run:android
+```
 
-Sube la carpeta a cualquier hosting estático con HTTPS (GitHub Pages, Netlify, Vercel, Cloudflare Pages). HTTPS es obligatorio para que se pueda instalar.
+## Compilar iOS y subir con Transporter
 
-## Ajustes
+Necesitas un Mac con Xcode, tu cuenta de Apple Developer iniciada en Xcode (Settings > Accounts) y la app creada en App Store Connect con el ID de pack `com.dixfm.app`.
 
-- Stream y nombre de la emisora: constantes al inicio de `app.js`.
-- Colores de marca: `--c1`, `--c2`, `--c3` en `styles.css` y `BRAND` en `app.js`.
-- Logo: `logo.svg`. Iconos: carpeta `icons/`.
-- Al cambiar archivos, sube el número de `CACHE` en `sw.js` para que los usuarios reciban la versión nueva.
+```bash
+APPLE_TEAM_ID=TU_TEAM_ID ./scripts/build-ios.sh
+```
+
+El `.ipa` queda en `build/ipa/`. Arrástralo a Transporter y pulsa "Entregar".
+
+Antes de cada subida nueva, aumenta `version` en `app.json` (o añade `ios.buildNumber`): App Store Connect rechaza números de compilación repetidos.
+
+## Compilar Android
+
+APK para instalar y probar:
+
+```bash
+./scripts/build-android.sh
+```
+
+Para Google Play hace falta un AAB firmado con tu clave de subida. Lo más simple es dejar que Expo la gestione:
+
+```bash
+npx eas-cli@latest build --platform android
+```
+
+Cada push también compila en GitHub Actions: el APK de prueba queda como artefacto del workflow "Build".
 
 La tipografía es Bricolage Grotesque (SIL Open Font License 1.1).
