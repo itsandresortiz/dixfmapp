@@ -3,7 +3,7 @@ name: Build
 on:
   push:
     branches: ['**']
-    paths-ignore: ['web/**', '**.md']
+    paths-ignore: ['web/**', '**.md', 'scripts/**']
   workflow_dispatch:
 
 concurrency:

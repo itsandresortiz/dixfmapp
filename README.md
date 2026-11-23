@@ -43,6 +43,8 @@ Sin abrir Xcode, con una clave de API de App Store Connect (Usuarios y acceso > 
 APPLE_TEAM_ID=TU_TEAM_ID ASC_KEY_ID=ID_DE_CLAVE ASC_ISSUER_ID=ISSUER_ID ASC_KEY_PATH=~/Downloads/AuthKey_ID_DE_CLAVE.p8 ./scripts/build-ios.sh
 ```
 
+Añade `UPLOAD=1` al principio de ese comando para enviarlo directamente a TestFlight, sin Transporter.
+
 O, si tu cuenta ya está iniciada en Xcode (Settings > Accounts):
 
 ```bash

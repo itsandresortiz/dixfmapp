@@ -9,6 +9,9 @@
 #   APPLE_TEAM_ID=ABCDE12345 ASC_KEY_ID=XXXXXXXXXX ASC_ISSUER_ID=xxxxxxxx-xxxx-... \
 #   ASC_KEY_PATH=~/Downloads/AuthKey_XXXXXXXXXX.p8 ./scripts/build-ios.sh
 #
+# Añade UPLOAD=1 para enviarlo directamente a App Store Connect / TestFlight
+# al terminar, sin pasar por Transporter (requiere la clave de API).
+#
 # Firma, opción B: con tu cuenta ya iniciada en Xcode (Settings > Accounts):
 #
 #   APPLE_TEAM_ID=ABCDE12345 ./scripts/build-ios.sh
@@ -25,6 +28,12 @@ if [ -n "${ASC_KEY_PATH:-}" ]; then
   [ -f "$KEY_PATH" ] || { echo "No existe el archivo de clave: $KEY_PATH" >&2; exit 1; }
   AUTH=(-authenticationKeyPath "$(cd "$(dirname "$KEY_PATH")" && pwd)/$(basename "$KEY_PATH")"
         -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+fi
+
+DESTINATION=export
+if [ "${UPLOAD:-0}" = "1" ]; then
+  [ ${#AUTH[@]} -gt 0 ] || { echo "UPLOAD=1 necesita la clave de API (ASC_KEY_PATH, ASC_KEY_ID, ASC_ISSUER_ID)" >&2; exit 1; }
+  DESTINATION=upload
 fi
 
 npm install
@@ -56,7 +65,7 @@ cat > "$BUILD_DIR/ExportOptions.plist" <<PLIST
 <plist version="1.0">
 <dict>
   <key>method</key><string>app-store-connect</string>
-  <key>destination</key><string>export</string>
+  <key>destination</key><string>${DESTINATION}</string>
   <key>teamID</key><string>${APPLE_TEAM_ID}</string>
   <key>signingStyle</key><string>automatic</string>
 </dict>
@@ -67,5 +76,9 @@ xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportPath "$BUILD_DIR/ipa" \
   -exportOptionsPlist "$BUILD_DIR/ExportOptions.plist" -allowProvisioningUpdates ${AUTH[@]+"${AUTH[@]}"}
 
 echo
-echo "Listo. Arrastra este archivo a Transporter:"
-ls "$BUILD_DIR"/ipa/*.ipa
+if [ "$DESTINATION" = "upload" ]; then
+  echo "Listo. La compilación se envió a App Store Connect; aparecerá en TestFlight cuando Apple termine de procesarla."
+else
+  echo "Listo. Arrastra este archivo a Transporter:"
+  ls "$BUILD_DIR"/ipa/*.ipa
+fi
