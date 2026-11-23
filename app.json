@@ -49,13 +49,6 @@
         }
       ],
       [
-        "expo-notifications",
-        {
-          "enableRemoteNotifications": false,
-          "color": "#6f6bff"
-        }
-      ],
-      [
         "expo-widgets",
         {
           "widgets": [

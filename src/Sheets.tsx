@@ -1,11 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { FlatList, Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { formatAlarm, type Alarm } from './alarm';
 import { colors } from './config';
 import type { Song } from './nowPlaying';
 import { Glass, Press, tap } from './ui';
@@ -166,74 +164,6 @@ export function SleepSheet({
   );
 }
 
-/** Despertador: elige la hora a la que Dix FM te avisa cada día. */
-export function AlarmSheet({
-  visible,
-  alarm,
-  onSave,
-  onClear,
-  onClose,
-}: {
-  visible: boolean;
-  alarm: Alarm | null;
-  onSave: (alarm: Alarm) => void;
-  onClear: () => void;
-  onClose: () => void;
-}) {
-  const insets = useSafeAreaInsets();
-  const [time, setTime] = useState<Alarm>({ hour: 7, minute: 0 });
-  useEffect(() => {
-    if (visible) setTime(alarm ?? { hour: 7, minute: 0 });
-  }, [visible, alarm]);
-
-  const asDate = new Date(2000, 0, 1, time.hour, time.minute);
-  const pick = (date?: Date) => date && setTime({ hour: date.getHours(), minute: date.getMinutes() });
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-      navigationBarTranslucent
-      supportedOrientations={[...ORIENTATIONS]}
-      onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Cerrar" accessibilityRole="button" />
-      <View style={[styles.sleep, { bottom: insets.bottom + 12 }]} pointerEvents="box-none">
-        <Glass interactive={false} solid="#2a2242" style={styles.card}>
-          <View style={styles.cardHead}>
-            <Ionicons name="alarm" size={20} color="#fff" />
-            <Text style={styles.cardTitle}>Despertar con Dix FM</Text>
-            {alarm && <Text style={styles.cardNote}>Activa a las {formatAlarm(alarm)}</Text>}
-          </View>
-          {Platform.OS === 'ios' ? (
-            <DateTimePicker value={asDate} mode="time" display="spinner" themeVariant="dark" textColor="#ffffff" onChange={(_, date) => pick(date)} style={styles.picker} />
-          ) : (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Hora: ${formatAlarm(time)}. Cambiar`}
-              style={styles.timeButton}
-              onPress={() =>
-                Platform.OS === 'android' &&
-                DateTimePickerAndroid.open({ value: asDate, mode: 'time', is24Hour: false, onChange: (_, date) => pick(date) })
-              }>
-              <Text style={styles.timeText}>{formatAlarm(time)}</Text>
-            </Pressable>
-          )}
-          <Text style={styles.cardHint}>
-            Cada día a esa hora llega un aviso. Con la app abierta la radio empieza sola; si está cerrada, empieza al tocar el aviso.
-          </Text>
-          <Option label={alarm ? 'Cambiar hora' : 'Activar despertador'} onPress={() => onSave(time)} />
-          {alarm && <Option label="Quitar despertador" color="#ff6482" onPress={onClear} />}
-        </Glass>
-        <Glass interactive={false} solid="#2a2242" style={[styles.card, styles.cancel]}>
-          <Option first label="Cancelar" onPress={onClose} />
-        </Glass>
-      </View>
-    </Modal>
-  );
-}
-
 const styles = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: colors.sheet },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
@@ -261,10 +191,6 @@ const styles = StyleSheet.create({
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 22, paddingTop: 20, paddingBottom: 14 },
   cardTitle: { flex: 1, color: '#fff', fontSize: 17, fontWeight: '700' },
   cardNote: { color: colors.text2, fontSize: 14, fontVariant: ['tabular-nums'] },
-  picker: { height: 150, alignSelf: 'stretch' },
-  timeButton: { alignItems: 'center', paddingVertical: 10 },
-  timeText: { color: '#fff', fontSize: 44, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  cardHint: { color: colors.text2, fontSize: 13, lineHeight: 18, paddingHorizontal: 22, paddingTop: 4, paddingBottom: 14 },
   option: { paddingVertical: 16, paddingHorizontal: 22, alignItems: 'center' },
   optionLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.22)' },
   optionPressed: { backgroundColor: 'rgba(255,255,255,0.12)' },

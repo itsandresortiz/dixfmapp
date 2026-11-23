@@ -11,7 +11,7 @@ App nativa de Dix FM para iOS y Android, hecha con Expo (React Native): un solo 
 - Carátula difuminada que se funde con el fondo; diseño horizontal para iPhone, iPad y plegables.
 - Botón de AirPlay (iOS) para enviar el audio a altavoces o a la tele.
 - Widgets de iOS (pantalla de inicio y de bloqueo) con la canción y su carátula.
-- Despertador diario, temporizador de apagado, recientes, favoritas y compartir.
+- Temporizador de apagado, recientes, favoritas y compartir.
 - Reconexión automática si se cae la señal.
 
 ## Estructura
