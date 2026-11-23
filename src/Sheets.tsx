@@ -68,7 +68,7 @@ export function SongsSheet({
               accessibilityRole={item.url ? 'link' : 'text'}
               accessibilityLabel={`${item.title}, ${item.artist}`}
               accessibilityHint={item.url ? 'Abre la canción en Apple Music' : undefined}
-              onPress={() => item.url && Linking.openURL(item.url).catch(() => {})}>
+              onPress={() => item.url?.startsWith('https://') && Linking.openURL(item.url).catch(() => {})}>
               {item.thumb ? (
                 <Image source={{ uri: item.thumb }} style={styles.thumb} transition={200} />
               ) : (
