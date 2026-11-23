@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Dix FM</title>
+  <meta name="description" content="Escucha Dix FM en vivo.">
+  <meta name="theme-color" content="#0d0820">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Dix FM">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preload" href="fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
+
+  <main class="app">
+    <section class="player" aria-label="Reproductor">
+      <header class="top">
+        <h1 class="brand">Dix FM</h1>
+        <p class="status" id="status" data-state="idle" role="status">En pausa</p>
+      </header>
+
+      <div class="cover" id="cover">
+        <div class="cover-fallback" aria-hidden="true">
+          <svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice">
+            <g fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="1.5">
+              <circle cx="310" cy="96" r="40"/><circle cx="310" cy="96" r="88"/>
+              <circle cx="310" cy="96" r="140"/><circle cx="310" cy="96" r="196"/>
+              <circle cx="310" cy="96" r="256"/><circle cx="310" cy="96" r="320"/>
+            </g>
+            <circle cx="310" cy="96" r="9" fill="#fff"/>
+          </svg>
+          <span>Dix<br>FM</span>
+        </div>
+        <img id="art" alt="" hidden>
+      </div>
+
+      <div class="meta">
+        <div class="meta-text">
+          <h2 id="title">Dix FM</h2>
+          <p id="artist">Radio en vivo</p>
+        </div>
+        <button class="icon-btn" id="fav" type="button" aria-pressed="false" aria-label="Guardar en favoritas" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2Z"/></svg>
+        </button>
+      </div>
+
+      <canvas class="viz" id="viz" aria-hidden="true"></canvas>
+
+      <div class="controls">
+        <button class="icon-btn glass" id="sleepBtn" type="button" aria-label="Temporizador de apagado">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path class="stroke" d="M19.5 14.2A8 8 0 0 1 9.8 4.5a8 8 0 1 0 9.7 9.7Z"/></svg>
+          <span class="badge" id="sleepBadge" hidden></span>
+        </button>
+
+        <button class="play" id="play" type="button" aria-label="Reproducir" data-state="idle">
+          <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.9l11-6.8a1 1 0 0 0 0-1.8l-11-6.8A1 1 0 0 0 8 5.2Z"/></svg>
+          <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4.5" width="4.5" height="15" rx="1.4"/><rect x="13.5" y="4.5" width="4.5" height="15" rx="1.4"/></svg>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+
+        <button class="icon-btn glass" id="share" type="button" aria-label="Compartir">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path class="stroke" d="M12 15V3.5m0 0L7.8 7.7M12 3.5l4.2 4.2M6 11.5H5a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 5 20.500h14a1.5 1.5 0 0 0 1.5-1.5v-6a1.5 1.5 0 0 0-1.5-1.5h-1"/></svg>
+        </button>
+      </div>
+
+      <label class="volume">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3l4.5-3.800v12.6L7 14.500H4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1Z"/></svg>
+        <input id="volume" type="range" min="0" max="1" step="0.01" value="1" aria-label="Volumen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3l4.5-3.800v12.6L7 14.500H4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1Z"/><path class="stroke" d="M15 9a4.2 4.2 0 0 1 0 6m2.600-8.800a8 8 0 0 1 0 11.6"/></svg>
+      </label>
+
+      <button class="panel-toggle" id="panelToggle" type="button" aria-controls="panel" aria-expanded="false">Canciones</button>
+    </section>
+
+    <div class="backdrop" id="backdrop" hidden></div>
+
+    <aside class="panel" id="panel" aria-label="Canciones">
+      <div class="panel-head">
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tabRecent" aria-selected="true" aria-controls="list" type="button">Recientes</button>
+          <button role="tab" id="tabFavs" aria-selected="false" aria-controls="list" type="button">Favoritas</button>
+        </div>
+        <button class="icon-btn panel-close" id="panelClose" type="button" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path class="stroke" d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <ul class="list" id="list" role="tabpanel"></ul>
+    </aside>
+  </main>
+
+  <dialog class="sheet" id="sleepDialog" aria-labelledby="sleepTitle">
+    <form method="dialog">
+      <h3 id="sleepTitle">Apagar la radio en</h3>
+      <button value="15">15 minutos</button>
+      <button value="30">30 minutos</button>
+      <button value="60">1 hora</button>
+      <button value="0" id="sleepOff" hidden>Quitar temporizador</button>
+      <button value="" class="cancel">Cancelar</button>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
