@@ -23,7 +23,7 @@ export function parseSong(raw: unknown): Song | null {
   const artist = cut > 0 ? text.slice(0, cut).trim() : '';
   const title = cut > 0 ? text.slice(cut + 3).trim() : text;
   // Cuñas e identificaciones de la emisora no son canciones.
-  if (!artist || !title || /^dix\s*fm/i.test(artist)) return null;
+  if (!artist || !title || /^dix\s*fm/i.test(artist) || /^(jingle|cu[ñn]a|promo|id)s?$/i.test(artist)) return null;
   return { key: text.toLowerCase(), title, artist, t: Date.now() };
 }
 
