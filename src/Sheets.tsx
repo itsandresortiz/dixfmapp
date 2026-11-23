@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { FlatList, Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Linking, Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from './config';
@@ -26,6 +26,7 @@ export function SongsSheet({
   onRemoveFav: (song: Song) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const styles = useStyles();
   const [tab, setTab] = useState<'recent' | 'favs'>('recent');
   const items = tab === 'recent' ? history : favs;
 
@@ -53,7 +54,7 @@ export function SongsSheet({
         <FlatList
           data={items}
           keyExtractor={(item) => item.key}
-          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: insets.bottom + 24, width: '100%', maxWidth: 640, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: insets.bottom + 24, width: '100%', maxWidth: 760, alignSelf: 'center' }}
           ListEmptyComponent={
             <Text style={styles.empty}>
               {tab === 'recent'
@@ -106,6 +107,7 @@ const SLEEP_OPTIONS = [
 ];
 
 function Option({ label, color, first, onPress }: { label: string; color?: string; first?: boolean; onPress: () => void }) {
+  const styles = useStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -134,6 +136,7 @@ export function SleepSheet({
   onClose: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const styles = useStyles();
   return (
     <Modal
       visible={visible}
@@ -164,35 +167,48 @@ export function SleepSheet({
   );
 }
 
-const styles = StyleSheet.create({
+/** Estilos a escala: crecen un poco en tabletas para que no se vean diminutos. */
+const makeStyles = (k: number) => {
+  const s = (n: number) => Math.round(n * k);
+  return StyleSheet.create({
   sheet: { flex: 1, backgroundColor: colors.sheet },
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
-  tabs: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 999, backgroundColor: colors.glass },
-  tab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999 },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: s(16), paddingVertical: s(10) },
+  tabs: { flexDirection: 'row', gap: s(4), padding: s(4), borderRadius: 999, backgroundColor: colors.glass },
+  tab: { paddingVertical: s(8), paddingHorizontal: s(16), borderRadius: 999 },
   tabOn: { backgroundColor: '#fff' },
-  tabText: { fontSize: 14, fontWeight: '600', color: colors.text2 },
+  tabText: { fontSize: s(14), fontWeight: '600', color: colors.text2 },
   tabTextOn: { color: colors.ink },
-  close: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.glass },
-  empty: { paddingVertical: 56, paddingHorizontal: 28, textAlign: 'center', color: colors.text2, fontSize: 16, lineHeight: 23 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 8, borderRadius: 14 },
+  close: { width: s(40), height: s(40), borderRadius: s(20), alignItems: 'center', justifyContent: 'center', backgroundColor: colors.glass },
+  empty: { paddingVertical: s(56), paddingHorizontal: s(28), textAlign: 'center', color: colors.text2, fontSize: s(16), lineHeight: s(23) },
+  row: { flexDirection: 'row', alignItems: 'center', gap: s(14), padding: s(8), borderRadius: s(14) },
   rowPressed: { backgroundColor: colors.glass },
-  thumb: { width: 52, height: 52, borderRadius: 9 },
+  thumb: { width: s(52), height: s(52), borderRadius: s(9) },
   thumbEmpty: { backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' },
-  thumbLogo: { width: 36, height: 16 },
+  thumbLogo: { width: s(36), height: s(16) },
   rowText: { flex: 1, minWidth: 0 },
-  rowTitle: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  rowArtist: { color: colors.text2, fontSize: 14, marginTop: 1 },
-  time: { color: colors.text3, fontSize: 13, fontVariant: ['tabular-nums'] },
-  remove: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  rowTitle: { color: '#fff', fontSize: s(16), fontWeight: '600' },
+  rowArtist: { color: colors.text2, fontSize: s(14), marginTop: 1 },
+  time: { color: colors.text3, fontSize: s(13), fontVariant: ['tabular-nums'] },
+  remove: { width: s(40), height: s(40), alignItems: 'center', justifyContent: 'center' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.32)' },
-  sleep: { position: 'absolute', alignSelf: 'center', width: '94%', maxWidth: 400, gap: 8 },
-  card: { borderRadius: 28, overflow: 'hidden' },
-  cancel: { borderRadius: 22 },
-  cardHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 22, paddingTop: 20, paddingBottom: 14 },
-  cardTitle: { flex: 1, color: '#fff', fontSize: 17, fontWeight: '700' },
-  cardNote: { color: colors.text2, fontSize: 14, fontVariant: ['tabular-nums'] },
-  option: { paddingVertical: 16, paddingHorizontal: 22, alignItems: 'center' },
+  sleep: { position: 'absolute', alignSelf: 'center', width: '94%', maxWidth: s(400), gap: s(8) },
+  card: { borderRadius: s(28), overflow: 'hidden' },
+  cancel: { borderRadius: s(22) },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: s(10), paddingHorizontal: s(22), paddingTop: s(20), paddingBottom: s(14) },
+  cardTitle: { flex: 1, color: '#fff', fontSize: s(17), fontWeight: '700' },
+  cardNote: { color: colors.text2, fontSize: s(14), fontVariant: ['tabular-nums'] },
+  option: { paddingVertical: s(16), paddingHorizontal: s(22), alignItems: 'center' },
   optionLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.22)' },
   optionPressed: { backgroundColor: 'rgba(255,255,255,0.12)' },
-  optionText: { color: '#fff', fontSize: 17, fontWeight: '500' },
+  optionText: { color: '#fff', fontSize: s(17), fontWeight: '500' },
 });
+};
+
+const cache = new Map<number, ReturnType<typeof makeStyles>>();
+function useStyles() {
+  const { width, height } = useWindowDimensions();
+  const k = Math.round(Math.min(1.3, Math.max(1, Math.min(width, height) / 640)) * 20) / 20;
+  let styles = cache.get(k);
+  if (!styles) cache.set(k, (styles = makeStyles(k)));
+  return styles;
+}

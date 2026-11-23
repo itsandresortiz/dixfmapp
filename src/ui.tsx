@@ -303,20 +303,20 @@ export function Intro({ start, children }: { start: boolean; children: ReactNode
 
 const BARS = 40;
 
-function Bar({ index, clock, level }: { index: number; clock: SharedValue<number>; level: SharedValue<number> }) {
+function Bar({ index, clock, level, scale }: { index: number; clock: SharedValue<number>; level: SharedValue<number>; scale: number }) {
   const style = useAnimatedStyle(() => {
     // Graves en el centro, agudos a los lados.
     const edge = Math.abs(index - (BARS - 1) / 2) / (BARS / 2);
     const t = clock.value;
     const wave =
       (0.5 + 0.5 * Math.sin(t * 5.1 + index * 0.9)) * (0.5 + 0.5 * Math.sin(t * 2.3 - index * 0.37)) * (1 - edge * 0.55) * 0.9 + 0.08;
-    return { height: 4 + wave * level.value * 40, opacity: 0.4 + level.value * 0.52 };
+    return { height: (4 + wave * level.value * 40) * scale, opacity: 0.4 + level.value * 0.52 };
   });
-  return <Animated.View style={[styles.bar, style]} />;
+  return <Animated.View style={[styles.bar, { width: 4 * scale, borderRadius: 2 * scale }, style]} />;
 }
 
 /** Onda que se mueve mientras suena la radio. */
-export function Waveform({ active }: { active: boolean }) {
+export function Waveform({ active, scale = 1 }: { active: boolean; scale?: number }) {
   const reduced = useReducedMotion();
   const clock = useSharedValue(0);
   const level = useSharedValue(0);
@@ -332,9 +332,9 @@ export function Waveform({ active }: { active: boolean }) {
   }, [active, reduced, clock, level]);
 
   return (
-    <View style={styles.wave} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View style={[styles.wave, { height: 48 * scale }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {Array.from({ length: BARS }, (_, i) => (
-        <Bar key={i} index={i} clock={clock} level={level} />
+        <Bar key={i} index={i} clock={clock} level={level} scale={scale} />
       ))}
     </View>
   );

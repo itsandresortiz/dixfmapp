@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as Linking from 'expo-linking';
 import { ActivityIndicator, Alert, Platform, Pressable, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -65,10 +65,14 @@ function Player() {
   const [minutesLeft, setMinutesLeft] = useState(0);
   const [coverBox, setCoverBox] = useState({ width: 0, height: 0 });
 
-  // Dos paneles en horizontal y en pantallas anchas (tabletas, plegables abiertos).
+  // Dos paneles en horizontal; en vertical, una columna (más ancha en tabletas).
   const { width, height } = useWindowDimensions();
-  const twoPane = width > height || width >= 700;
+  const twoPane = width > height;
   const roomy = twoPane && height >= 600; // con altura de sobra, el contenido se agrupa en el centro
+  // En tabletas y plegables abiertos todo crece en proporción a la pantalla.
+  const k = Math.min(1.5, Math.max(1, Math.min(width, height) / 600));
+  const styles = useMemo(() => makeStyles(k), [k]);
+  const icon = (n: number) => Math.round(n * k);
 
   // La carátula crece cuando suena y se encoge en pausa.
   const coverScale = useSharedValue(0.9);
@@ -76,7 +80,7 @@ function Player() {
     coverScale.value = withSpring(radio.state === 'playing' ? 1 : 0.9, { damping: 16, stiffness: 110 });
   }, [radio.state, coverScale]);
   const coverStyle = useAnimatedStyle(() => ({ transform: [{ scale: coverScale.value }], opacity: 0.55 + (coverScale.value - 0.9) * 4.5 }));
-  const coverSize = Math.max(0, Math.min(coverBox.width, coverBox.height, 640));
+  const coverSize = Math.max(0, Math.min(coverBox.width, coverBox.height, 640 * k));
 
   // Temporizador de apagado
   const { stop } = radio;
@@ -157,7 +161,7 @@ function Player() {
         selected={isFav}
         label={isFav ? 'Quitar de favoritas' : 'Guardar en favoritas'}
         style={styles.heart}>
-        <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={28} color={isFav ? colors.live : '#fff'} />
+        <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={icon(28)} color={isFav ? colors.live : '#fff'} />
       </Press>
     </View>
   );
@@ -166,7 +170,7 @@ function Player() {
     <View style={styles.controls}>
       <Press onPress={() => setSleepOpen(true)} label={sleepAt ? `Temporizador: quedan ${minutesLeft} minutos` : 'Temporizador de apagado'}>
         <Glass style={styles.round}>
-          <Ionicons name="moon-outline" size={23} color="#fff" />
+          <Ionicons name="moon-outline" size={icon(23)} color="#fff" />
         </Glass>
         {sleepAt > 0 && (
           <View style={styles.badge}>
@@ -179,13 +183,13 @@ function Player() {
         {busy ? (
           <ActivityIndicator color={colors.ink} size="large" />
         ) : (
-          <Ionicons name={active ? 'pause' : 'play'} size={twoPane ? 32 : 38} color={colors.ink} style={!active && styles.playNudge} />
+          <Ionicons name={active ? 'pause' : 'play'} size={icon(twoPane ? 32 : 38)} color={colors.ink} style={!active && styles.playNudge} />
         )}
       </Press>
 
       <Press onPress={share} label="Compartir">
         <Glass style={styles.round}>
-          <Ionicons name={Platform.OS === 'ios' ? 'share-outline' : 'share-social-outline'} size={23} color="#fff" />
+          <Ionicons name={Platform.OS === 'ios' ? 'share-outline' : 'share-social-outline'} size={icon(23)} color="#fff" />
         </Glass>
       </Press>
     </View>
@@ -232,7 +236,7 @@ function Player() {
             <View style={styles.landMiddle}>
               {status}
               {meta}
-              <Waveform active={radio.state === 'playing'} />
+              <Waveform active={radio.state === 'playing'} scale={k} />
               {roomy && controls}
             </View>
             {!roomy && controls}
@@ -246,7 +250,7 @@ function Player() {
           </View>
           {cover}
           {meta}
-          <Waveform active={radio.state === 'playing'} />
+          <Waveform active={radio.state === 'playing'} scale={k} />
           {controls}
           {actions}
         </View>
@@ -283,60 +287,64 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.ink },
-  screen: { flex: 1, width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 28 },
-  land: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 32, width: '100%', maxWidth: 1180, alignSelf: 'center' },
-  landSide: { flex: 1.15, minWidth: 0, maxWidth: 560 },
-  landTop: { height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  landMiddle: { flex: 1, justifyContent: 'center', gap: 8 },
-  playLand: { width: 72, height: 72, borderRadius: 36 },
-  songsLand: { paddingVertical: 9, paddingHorizontal: 18 },
-  top: { height: 52, zIndex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  brand: { width: 76, height: 30 },
-  status: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.text3 },
-  statusText: { color: colors.text2, fontSize: 13, fontWeight: '600' },
-  coverBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  coverBleed: { marginHorizontal: -28, marginTop: -34, marginBottom: -10 },
-  coverArt: { position: 'absolute' },
-  meta: { flexDirection: 'row', alignItems: 'center', gap: 16, minHeight: 64 },
-  metaText: { flex: 1, minWidth: 0 },
-  title: { color: '#fff', fontFamily: fonts.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.4 },
-  artist: { color: colors.text2, fontSize: 17, marginTop: 2 },
-  heart: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
-  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, marginTop: 14 },
-  round: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  play: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
-  },
-  playNudge: { marginLeft: 4 },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -6,
-    minWidth: 24,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-  },
-  badgeText: { color: colors.ink, fontSize: 11, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 18 },
-  actionsLand: { marginTop: 0, gap: 10 },
-  small: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  airplay: { width: 44, height: 44 },
-  songs: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 999 },
-  songsText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-});
+/** Estilos a escala: `k` es 1 en teléfonos y crece en tabletas y plegables abiertos. */
+const makeStyles = (k: number) => {
+  const s = (n: number) => Math.round(n * k);
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: colors.ink },
+    screen: { flex: 1, width: '100%', maxWidth: k > 1 ? s(470) : 520, alignSelf: 'center', paddingHorizontal: 28 },
+    land: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: s(32), width: '100%', maxWidth: 1400, alignSelf: 'center' },
+    landSide: { flex: 1.15, minWidth: 0, maxWidth: s(520) },
+    landTop: { height: s(44), flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    landMiddle: { flex: 1, justifyContent: 'center', gap: s(8) },
+    playLand: { width: s(72), height: s(72), borderRadius: s(36) },
+    songsLand: { paddingVertical: s(9), paddingHorizontal: s(18) },
+    top: { height: s(52), zIndex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    brand: { width: s(76), height: s(30) },
+    status: { flexDirection: 'row', alignItems: 'center', gap: s(8) },
+    dot: { width: s(8), height: s(8), borderRadius: s(4), backgroundColor: colors.text3 },
+    statusText: { color: colors.text2, fontSize: s(13), fontWeight: '600' },
+    coverBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    coverBleed: { marginHorizontal: -28, marginTop: -s(34), marginBottom: -s(10) },
+    coverArt: { position: 'absolute' },
+    meta: { flexDirection: 'row', alignItems: 'center', gap: s(16), minHeight: s(64) },
+    metaText: { flex: 1, minWidth: 0 },
+    title: { color: '#fff', fontFamily: fonts.display, fontSize: s(24), lineHeight: s(28), letterSpacing: -0.4 * k },
+    artist: { color: colors.text2, fontSize: s(17), marginTop: s(2) },
+    heart: { width: s(48), height: s(48), alignItems: 'center', justifyContent: 'center' },
+    controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, marginTop: s(14) },
+    round: { width: s(52), height: s(52), borderRadius: s(26), alignItems: 'center', justifyContent: 'center' },
+    play: {
+      width: s(84),
+      height: s(84),
+      borderRadius: s(42),
+      backgroundColor: '#fff',
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.4,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 10,
+    },
+    playNudge: { marginLeft: s(4) },
+    badge: {
+      position: 'absolute',
+      top: -4,
+      right: -6,
+      minWidth: s(24),
+      paddingHorizontal: s(6),
+      paddingVertical: s(2),
+      borderRadius: s(12),
+      backgroundColor: '#fff',
+      alignItems: 'center',
+    },
+    badgeText: { color: colors.ink, fontSize: s(11), fontWeight: '700', fontVariant: ['tabular-nums'] },
+    actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: s(14), marginTop: s(18) },
+    actionsLand: { marginTop: 0, gap: s(10) },
+    small: { width: s(44), height: s(44), borderRadius: s(22), alignItems: 'center', justifyContent: 'center' },
+    airplay: { width: s(44), height: s(44) },
+    songs: { paddingVertical: s(12), paddingHorizontal: s(24), borderRadius: 999 },
+    songsText: { color: '#fff', fontSize: s(15), fontWeight: '600' },
+  });
+};
