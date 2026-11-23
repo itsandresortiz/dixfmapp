@@ -5,23 +5,21 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import * as Linking from 'expo-linking';
-import { ActivityIndicator, Alert, Platform, Pressable, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { ActivityIndicator, Alert, Platform, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AirPlayButton from './modules/airplay-button/src/AirPlayButtonView';
-import { ArtViewer } from './src/ArtViewer';
 import { AlarmSheet, SleepSheet, SongsSheet } from './src/Sheets';
 import { formatAlarm, useAlarm } from './src/alarm';
 import { STATION, TAGLINE, colors, fonts } from './src/config';
 import { useNowPlaying } from './src/nowPlaying';
 import { useRadio, type RadioState } from './src/useRadio';
-import { Ambient, Feather, Glass, Intro, Press, Waveform } from './src/ui';
-import widget from './src/widget';
+import { Ambient, ArtStack, Glass, Intro, Press, Waveform, useHeld } from './src/ui';
+import { updateWidget } from './src/widget';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-const logo = require('./assets/logo.png');
 const logoWhite = require('./assets/logo-white.png');
 
 const STATUS_TEXT: Record<RadioState, string> = {
@@ -51,22 +49,17 @@ function Player() {
     if (url && /^dixfm:\/\/play/.test(url)) play();
   }, [url, play]);
 
-  // El widget muestra la canción mientras suena; en pausa invita a escuchar.
+  // El widget muestra la canción y su carátula mientras suena; en pausa invita a escuchar.
   useEffect(() => {
-    try {
-      widget?.updateSnapshot(
-        active
-          ? { title: song?.title ?? STATION, artist: song?.artist ?? TAGLINE, live: true }
-          : { title: STATION, artist: 'Toca para escuchar en vivo', live: false }
-      );
-    } catch {
-      // Sin extensión de widget (por ejemplo, en desarrollo).
-    }
-  }, [active, song?.title, song?.artist]);
+    updateWidget(
+      active
+        ? { title: song?.title ?? STATION, artist: song?.artist ?? TAGLINE, live: true, artUrl: song?.art }
+        : { title: STATION, artist: 'Toca para escuchar en vivo', live: false }
+    );
+  }, [active, song?.title, song?.artist, song?.art]);
 
   const [songsOpen, setSongsOpen] = useState(false);
   const [alarmOpen, setAlarmOpen] = useState(false);
-  const [artOpen, setArtOpen] = useState(false);
   const [sleepOpen, setSleepOpen] = useState(false);
   const [sleepAt, setSleepAt] = useState(0);
   const [minutesLeft, setMinutesLeft] = useState(0);
@@ -130,38 +123,22 @@ function Player() {
     </View>
   );
 
-  // La carátula no es una tarjeta: sus bordes se difuminan hasta fundirse con el fondo.
+  // La carátula no es una tarjeta: se dibuja más grande que su hueco y sus bordes se
+  // difuminan con una curva suave hasta fundirse con el fondo, que lleva sus mismos colores.
+  const artSize = coverSize * 1.3;
+  const art = useHeld(song?.art);
+  const thumb = useHeld(song?.thumb);
   const cover = (
-    <View style={[styles.coverBox, !twoPane && styles.coverBleed]} onLayout={(e) => setCoverBox(e.nativeEvent.layout)}>
-      <Animated.View style={[{ width: coverSize, height: coverSize }, coverStyle]}>
-        {song?.art ? (
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setArtOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel={`Carátula de ${song.title}. Ampliar`}>
-            <Feather style={StyleSheet.absoluteFill}>
-            <Image
-              source={{ uri: song.art }}
-              placeholder={song.thumb ? { uri: song.thumb } : null}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-              transition={600}
-            />
-            </Feather>
-          </Pressable>
-        ) : (
-          <View style={styles.coverEmpty}>
-            <Image source={logo} style={styles.coverLogo} contentFit="contain" />
-          </View>
-        )}
+    <View style={[styles.coverBox, !twoPane && styles.coverBleed]} pointerEvents="none" onLayout={(e) => setCoverBox(e.nativeEvent.layout)}>
+      <Animated.View style={[styles.coverArt, { width: artSize, height: artSize }, coverStyle]}>
+        <ArtStack art={art} thumb={thumb} label={song ? `Carátula de ${song.title}` : undefined} style={StyleSheet.absoluteFill} />
       </Animated.View>
     </View>
   );
 
   const meta = (
     <View style={styles.meta}>
-      <Animated.View key={song?.key ?? 'station'} entering={FadeIn.duration(450)} style={styles.metaText}>
+      <Animated.View key={song?.key ?? 'station'} entering={FadeInDown.duration(600)} style={styles.metaText}>
         <Text style={styles.title} numberOfLines={2}>
           {song?.title ?? STATION}
         </Text>
@@ -241,7 +218,7 @@ function Player() {
 
   return (
     <View style={styles.root}>
-      <Ambient art={song?.thumb} />
+      <Ambient art={thumb} />
 
       {twoPane ? (
         // Horizontal: carátula a la izquierda, todo lo demás en una columna a la derecha.
@@ -295,7 +272,6 @@ function Player() {
         }}
         onClose={() => setAlarmOpen(false)}
       />
-      {artOpen && song?.art && <ArtViewer song={song} onClose={() => setArtOpen(false)} />}
       <SleepSheet visible={sleepOpen} active={sleepAt > 0} minutesLeft={minutesLeft} onPick={pickSleep} onClose={() => setSleepOpen(false)} />
     </View>
   );
@@ -342,8 +318,7 @@ const styles = StyleSheet.create({
   statusText: { color: colors.text2, fontSize: 13, fontWeight: '600' },
   coverBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   coverBleed: { marginHorizontal: -28, marginTop: -34, marginBottom: -10 },
-  coverEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  coverLogo: { width: '62%', height: '36%' },
+  coverArt: { position: 'absolute' },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 16, minHeight: 64 },
   metaText: { flex: 1, minWidth: 0 },
   title: { color: '#fff', fontFamily: fonts.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.4 },

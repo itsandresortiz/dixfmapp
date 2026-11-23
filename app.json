@@ -66,7 +66,9 @@
               "ios": {
                 "supportedFamilies": [
                   "systemSmall",
-                  "systemMedium"
+                  "systemMedium",
+                  "systemLarge",
+                  "accessoryRectangular"
                 ],
                 "initialLayout": "./src/widget.ios.tsx"
               }

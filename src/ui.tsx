@@ -118,7 +118,7 @@ export function Ambient({ art }: { art?: string }) {
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        <Image source={art ? { uri: art } : null} blurRadius={70} contentFit="cover" transition={1400} style={StyleSheet.absoluteFill} />
+        <Image source={art ? { uri: art } : null} blurRadius={70} contentFit="cover" transition={{ duration: 1600, effect: 'cross-dissolve' }} style={StyleSheet.absoluteFill} />
       </Animated.View>
       <LinearGradient colors={['rgba(13,8,32,0.32)', 'rgba(13,8,32,0.74)']} style={StyleSheet.absoluteFill} />
     </View>
@@ -132,12 +132,22 @@ const MaskedView = MaskedViewBase as unknown as ComponentType<{
   children?: ReactNode;
 }>;
 
-const FADE = ['transparent', 'rgba(0,0,0,0.3)', '#000', '#000', 'rgba(0,0,0,0.3)', 'transparent'] as const;
-const FADE_X = [0, 0.06, 0.2, 0.8, 0.94, 1] as const;
-const FADE_Y = [0, 0.07, 0.24, 0.66, 0.88, 1] as const;
-const WEB_MASK =
-  'linear-gradient(to right, transparent, rgba(0,0,0,.3) 6%, #000 20%, #000 80%, rgba(0,0,0,.3) 94%, transparent), ' +
-  'linear-gradient(to bottom, transparent, rgba(0,0,0,.3) 7%, #000 24%, #000 66%, rgba(0,0,0,.3) 88%, transparent)';
+// Curva suave (smoothstep) con muchos pasos: así el borde no se percibe como una línea.
+const STEPS = 8;
+const ease = (t: number) => t * t * (3 - 2 * t);
+function fade(inEnd: number, outStart: number) {
+  const stops: { at: number; alpha: number }[] = [];
+  for (let i = 0; i <= STEPS; i++) stops.push({ at: (inEnd * i) / STEPS, alpha: ease(i / STEPS) });
+  for (let i = 0; i <= STEPS; i++) stops.push({ at: outStart + ((1 - outStart) * i) / STEPS, alpha: ease(1 - i / STEPS) });
+  return {
+    colors: stops.map((s) => `rgba(0,0,0,${s.alpha.toFixed(3)})`) as [string, string, ...string[]],
+    locations: stops.map((s) => s.at) as [number, number, ...number[]],
+    css: stops.map((s) => `rgba(0,0,0,${s.alpha.toFixed(3)}) ${(s.at * 100).toFixed(1)}%`).join(', '),
+  };
+}
+const FADE_X = fade(0.3, 0.7);
+const FADE_Y = fade(0.3, 0.52);
+const WEB_MASK = `linear-gradient(to right, ${FADE_X.css}), linear-gradient(to bottom, ${FADE_Y.css})`;
 
 /** Difumina los cuatro bordes de su contenido para que se funda con el fondo. */
 export function Feather({ style, children }: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
@@ -148,13 +158,99 @@ export function Feather({ style, children }: { style?: StyleProp<ViewStyle>; chi
   return (
     <MaskedView
       style={style}
-      maskElement={<LinearGradient colors={FADE} locations={FADE_X} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />}>
+      maskElement={<LinearGradient colors={FADE_X.colors} locations={FADE_X.locations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />}>
       <MaskedView
         style={StyleSheet.absoluteFill}
-        maskElement={<LinearGradient colors={FADE} locations={FADE_Y} style={StyleSheet.absoluteFill} />}>
+        maskElement={<LinearGradient colors={FADE_Y.colors} locations={FADE_Y.locations} style={StyleSheet.absoluteFill} />}>
         {children}
       </MaskedView>
     </MaskedView>
+  );
+}
+
+const coverLogo = require('../assets/logo.png');
+type Layer = { key: string; art?: string; thumb?: string };
+
+function ArtLayer({ layer, leaving, label, onGone }: { layer: Layer; leaving: boolean; label?: string; onGone: () => void }) {
+  const reduced = useReducedMotion();
+  const enter = useSharedValue(0);
+  const leave = useSharedValue(0);
+
+  useEffect(() => {
+    enter.value = withTiming(1, { duration: reduced ? 250 : 1100, easing: Easing.out(Easing.cubic) });
+  }, [enter, reduced]);
+
+  useEffect(() => {
+    if (!leaving) return;
+    leave.value = withTiming(1, { duration: reduced ? 250 : 900, easing: Easing.inOut(Easing.quad) });
+    const timer = setTimeout(onGone, 950);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leaving]);
+
+  // La nueva llega desde un poco más cerca y se asienta; la anterior se aleja y se apaga.
+  const style = useAnimatedStyle(() => ({
+    opacity: Math.min(1, enter.value * 1.6) * (1 - leave.value),
+    transform: [{ scale: reduced ? 1 : (1.14 - 0.14 * enter.value) * (1 - 0.07 * leave.value) }],
+  }));
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, styles.artLayer, style]}>
+      {layer.art ? (
+        <Image
+          source={{ uri: layer.art }}
+          placeholder={layer.thumb ? { uri: layer.thumb } : null}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={300}
+          accessibilityLabel={label}
+        />
+      ) : (
+        <Image source={coverLogo} style={styles.artLogo} contentFit="contain" />
+      )}
+    </Animated.View>
+  );
+}
+
+/**
+ * Mantiene el último valor mientras llega el siguiente: al cambiar de canción la carátula
+ * anterior sigue en pantalla hasta que carga la nueva, sin pasar por el logo.
+ */
+export function useHeld<T>(value: T | undefined, ms = 3000) {
+  const [held, setHeld] = useState(value);
+  useEffect(() => {
+    if (value !== undefined) {
+      setHeld(value);
+      return;
+    }
+    const timer = setTimeout(() => setHeld(undefined), ms);
+    return () => clearTimeout(timer);
+  }, [value, ms]);
+  return value ?? held;
+}
+
+/** Carátula con bordes difuminados; al cambiar de canción funde una con otra. */
+export function ArtStack({ art, thumb, label, style }: { art?: string; thumb?: string; label?: string; style?: StyleProp<ViewStyle> }) {
+  const key = art ?? 'logo';
+  const [layers, setLayers] = useState<Layer[]>([{ key, art, thumb }]);
+
+  useEffect(() => {
+    setLayers((current) => (current[current.length - 1].key === key ? current : [...current.slice(-1), { key, art, thumb }]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  return (
+    <Feather style={style}>
+      {layers.map((layer, index) => (
+        <ArtLayer
+          key={layer.key}
+          layer={layer}
+          label={label}
+          leaving={index < layers.length - 1}
+          onGone={() => setLayers((current) => (current.length > 1 ? current.filter((l) => l.key !== layer.key) : current))}
+        />
+      ))}
+    </Feather>
   );
 }
 
@@ -246,6 +342,8 @@ export function Waveform({ active }: { active: boolean }) {
 
 const styles = StyleSheet.create({
   clip: { overflow: 'hidden' },
+  artLayer: { alignItems: 'center', justifyContent: 'center' },
+  artLogo: { width: '38%', height: '22%' },
   introRoot: { flex: 1, backgroundColor: colors.ink },
   veil: { backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   // Mismo tamaño que el logo de la pantalla de inicio (220 de ancho, logo al 78 %).

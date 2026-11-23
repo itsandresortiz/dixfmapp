@@ -8,9 +8,9 @@ App nativa de Dix FM para iOS y Android, hecha con Expo (React Native): un solo 
 - Controles y carátula en la pantalla de bloqueo, auriculares y coche.
 - Canción en curso, carátula y enlace a Apple Music.
 - Fondo que toma los colores de la carátula; Liquid Glass en los iPhone que lo soportan.
-- Carátula a pantalla completa al tocarla; diseño horizontal para iPhone, iPad y plegables.
+- Carátula difuminada que se funde con el fondo; diseño horizontal para iPhone, iPad y plegables.
 - Botón de AirPlay (iOS) para enviar el audio a altavoces o a la tele.
-- Widget de pantalla de inicio (iOS) con la canción que suena.
+- Widgets de iOS (pantalla de inicio y de bloqueo) con la canción y su carátula.
 - Despertador diario, temporizador de apagado, recientes, favoritas y compartir.
 - Reconexión automática si se cae la señal.
 
