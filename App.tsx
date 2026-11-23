@@ -4,15 +4,20 @@ import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import * as Linking from 'expo-linking';
+import { ActivityIndicator, Alert, Platform, Pressable, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { SleepSheet, SongsSheet } from './src/Sheets';
+import AirPlayButton from './modules/airplay-button/src/AirPlayButtonView';
+import { ArtViewer } from './src/ArtViewer';
+import { AlarmSheet, SleepSheet, SongsSheet } from './src/Sheets';
+import { formatAlarm, useAlarm } from './src/alarm';
 import { STATION, TAGLINE, colors, fonts } from './src/config';
 import { useNowPlaying } from './src/nowPlaying';
 import { useRadio, type RadioState } from './src/useRadio';
 import { Ambient, Feather, Glass, Intro, Press, Waveform } from './src/ui';
+import widget from './src/widget';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -38,7 +43,30 @@ function Player() {
   const active = radio.state !== 'idle';
   useEffect(() => setPlaying(active), [active]);
 
+  // Abrir con dixfm://play (widget) o desde el aviso del despertador empieza a sonar.
+  const { play } = radio;
+  const { alarm, setAlarm, clearAlarm } = useAlarm(play);
+  const url = Linking.useURL();
+  useEffect(() => {
+    if (url && /^dixfm:\/\/play/.test(url)) play();
+  }, [url, play]);
+
+  // El widget muestra la canción mientras suena; en pausa invita a escuchar.
+  useEffect(() => {
+    try {
+      widget?.updateSnapshot(
+        active
+          ? { title: song?.title ?? STATION, artist: song?.artist ?? TAGLINE, live: true }
+          : { title: STATION, artist: 'Toca para escuchar en vivo', live: false }
+      );
+    } catch {
+      // Sin extensión de widget (por ejemplo, en desarrollo).
+    }
+  }, [active, song?.title, song?.artist]);
+
   const [songsOpen, setSongsOpen] = useState(false);
+  const [alarmOpen, setAlarmOpen] = useState(false);
+  const [artOpen, setArtOpen] = useState(false);
   const [sleepOpen, setSleepOpen] = useState(false);
   const [sleepAt, setSleepAt] = useState(0);
   const [minutesLeft, setMinutesLeft] = useState(0);
@@ -107,7 +135,12 @@ function Player() {
     <View style={[styles.coverBox, !twoPane && styles.coverBleed]} onLayout={(e) => setCoverBox(e.nativeEvent.layout)}>
       <Animated.View style={[{ width: coverSize, height: coverSize }, coverStyle]}>
         {song?.art ? (
-          <Feather style={StyleSheet.absoluteFill}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setArtOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Carátula de ${song.title}. Ampliar`}>
+            <Feather style={StyleSheet.absoluteFill}>
             <Image
               source={{ uri: song.art }}
               placeholder={song.thumb ? { uri: song.thumb } : null}
@@ -115,7 +148,8 @@ function Player() {
               contentFit="cover"
               transition={600}
             />
-          </Feather>
+            </Feather>
+          </Pressable>
         ) : (
           <View style={styles.coverEmpty}>
             <Image source={logo} style={styles.coverLogo} contentFit="contain" />
@@ -167,21 +201,43 @@ function Player() {
         )}
       </Press>
 
-      <Press onPress={share} label="Compartir">
+      <Press onPress={() => setAlarmOpen(true)} label={alarm ? `Despertador a las ${formatAlarm(alarm)}` : 'Despertador'}>
         <Glass style={styles.round}>
-          <Ionicons name={Platform.OS === 'ios' ? 'share-outline' : 'share-social-outline'} size={23} color="#fff" />
+          <Ionicons name={alarm ? 'alarm' : 'alarm-outline'} size={24} color="#fff" />
         </Glass>
+        {alarm && <View style={styles.badgeDot} />}
       </Press>
     </View>
   );
 
-  const songs = (
-    <Press onPress={() => setSongsOpen(true)} label="Canciones" style={twoPane ? undefined : styles.songsWrap}>
-      <Glass style={[styles.songs, twoPane && styles.songsLand]}>
-        <Text style={styles.songsText}>Canciones</Text>
-      </Glass>
-    </Press>
+  // Fila de acciones: compartir, lista de canciones y salida de audio (AirPlay, solo iOS).
+  const actions = (
+    <View style={[styles.actions, twoPane && styles.actionsLand]}>
+      <Press onPress={share} label="Compartir">
+        <Glass style={styles.small}>
+          <Ionicons name={Platform.OS === 'ios' ? 'share-outline' : 'share-social-outline'} size={20} color="#fff" />
+        </Glass>
+      </Press>
+      <Press onPress={() => setSongsOpen(true)} label="Canciones">
+        <Glass style={[styles.songs, twoPane && styles.songsLand]}>
+          <Text style={styles.songsText}>Canciones</Text>
+        </Glass>
+      </Press>
+      {Platform.OS === 'ios' ? (
+        <Glass style={styles.small}>
+          <AirPlayButton style={styles.airplay} accessibilityLabel="AirPlay y salida de audio" />
+        </Glass>
+      ) : (
+        !twoPane && <View style={styles.small} />
+      )}
+    </View>
   );
+
+  const saveAlarm = async (next: { hour: number; minute: number }) => {
+    setAlarmOpen(false);
+    const ok = await setAlarm(next).catch(() => false);
+    if (!ok) Alert.alert('Activa las notificaciones', 'El despertador necesita permiso de notificaciones. Actívalo en Ajustes > Dix FM.');
+  };
 
   return (
     <View style={styles.root}>
@@ -203,7 +259,7 @@ function Player() {
           <View style={styles.landSide}>
             <View style={styles.landTop}>
               {brand}
-              {songs}
+              {actions}
             </View>
             <View style={styles.landMiddle}>
               {status}
@@ -224,11 +280,22 @@ function Player() {
           {meta}
           <Waveform active={radio.state === 'playing'} />
           {controls}
-          {songs}
+          {actions}
         </View>
       )}
 
       <SongsSheet visible={songsOpen} onClose={() => setSongsOpen(false)} history={history} favs={favs} onRemoveFav={toggleFav} />
+      <AlarmSheet
+        visible={alarmOpen}
+        alarm={alarm}
+        onSave={saveAlarm}
+        onClear={() => {
+          setAlarmOpen(false);
+          clearAlarm();
+        }}
+        onClose={() => setAlarmOpen(false)}
+      />
+      {artOpen && song?.art && <ArtViewer song={song} onClose={() => setArtOpen(false)} />}
       <SleepSheet visible={sleepOpen} active={sleepAt > 0} minutesLeft={minutesLeft} onPick={pickSleep} onClose={() => setSleepOpen(false)} />
     </View>
   );
@@ -310,7 +377,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeText: { color: colors.ink, fontSize: 11, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  songsWrap: { alignSelf: 'center', marginTop: 18 },
+  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 18 },
+  actionsLand: { marginTop: 0, gap: 10 },
+  small: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  airplay: { width: 44, height: 44 },
+  badgeDot: { position: 'absolute', top: 0, right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.live, borderWidth: 2, borderColor: '#fff' },
   songs: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 999 },
   songsText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

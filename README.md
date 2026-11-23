@@ -8,7 +8,10 @@ App nativa de Dix FM para iOS y Android, hecha con Expo (React Native): un solo 
 - Controles y carátula en la pantalla de bloqueo, auriculares y coche.
 - Canción en curso, carátula y enlace a Apple Music.
 - Fondo que toma los colores de la carátula; Liquid Glass en los iPhone que lo soportan.
-- Canciones recientes, favoritas, temporizador de apagado y compartir.
+- Carátula a pantalla completa al tocarla; diseño horizontal para iPhone, iPad y plegables.
+- Botón de AirPlay (iOS) para enviar el audio a altavoces o a la tele.
+- Widget de pantalla de inicio (iOS) con la canción que suena.
+- Despertador diario, temporizador de apagado, recientes, favoritas y compartir.
 - Reconexión automática si se cae la señal.
 
 ## Estructura
@@ -16,6 +19,7 @@ App nativa de Dix FM para iOS y Android, hecha con Expo (React Native): un solo 
 - `App.tsx` y `src/`: la app. El stream, los textos y los colores están en `src/config.ts`.
 - `assets/`: icono, splash y logo.
 - `app.json`: nombre, identificador (`com.dixfm.app`) y permisos.
+- `modules/airplay-button/`: módulo nativo del botón de AirPlay.
 - `scripts/`: compilación por terminal.
 - `web/`: versión web instalable (PWA), independiente de la app nativa.
 

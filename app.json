@@ -47,6 +47,32 @@
           "resizeMode": "contain",
           "backgroundColor": "#0d0820"
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "enableRemoteNotifications": false,
+          "color": "#6f6bff"
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "widgets": [
+            {
+              "name": "DixFM",
+              "displayName": "Dix FM",
+              "description": "La canción que suena y acceso directo a la radio en vivo.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ],
+                "initialLayout": "./src/widget.ios.tsx"
+              }
+            }
+          ]
+        }
       ]
     ]
   }
