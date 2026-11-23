@@ -6,9 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from './config';
 import type { Song } from './nowPlaying';
-import { Press } from './ui';
+import { Glass, Press, tap } from './ui';
 
 const logo = require('../assets/logo.png');
+const ORIENTATIONS = ['portrait', 'landscape'] as const;
 const timeFmt = new Intl.DateTimeFormat('es', { hour: 'numeric', minute: '2-digit' });
 
 export function SongsSheet({
@@ -29,7 +30,7 @@ export function SongsSheet({
   const items = tab === 'recent' ? history : favs;
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" supportedOrientations={[...ORIENTATIONS]} onRequestClose={onClose}>
       <View style={[styles.sheet, { paddingTop: Platform.OS === 'ios' ? 10 : insets.top + 8 }]}>
         <View style={styles.head}>
           <View style={styles.tabs} accessibilityRole="tablist">
@@ -52,7 +53,7 @@ export function SongsSheet({
         <FlatList
           data={items}
           keyExtractor={(item) => item.key}
-          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: insets.bottom + 24 }}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: insets.bottom + 24, width: '100%', maxWidth: 640, alignSelf: 'center' }}
           ListEmptyComponent={
             <Text style={styles.empty}>
               {tab === 'recent'
@@ -104,40 +105,60 @@ const SLEEP_OPTIONS = [
   { minutes: 60, label: '1 hora' },
 ];
 
+function Option({ label, color, first, onPress }: { label: string; color?: string; first?: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      style={({ pressed }) => [styles.option, !first && styles.optionLine, pressed && styles.optionPressed]}
+      onPress={() => {
+        tap();
+        onPress();
+      }}>
+      <Text style={[styles.optionText, color ? { color } : null]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Temporizador de apagado: hoja de cristal que deja ver la carátula detrás. */
 export function SleepSheet({
   visible,
   active,
+  minutesLeft,
   onPick,
   onClose,
 }: {
   visible: boolean;
   active: boolean;
+  minutesLeft: number;
   onPick: (minutes: number) => void;
   onClose: () => void;
 }) {
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      navigationBarTranslucent
+      supportedOrientations={[...ORIENTATIONS]}
+      onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Cerrar" accessibilityRole="button" />
-      <View style={[styles.card, { marginBottom: insets.bottom + 12 }]}>
-        <Text style={styles.cardTitle}>Apagar la radio en</Text>
-        {SLEEP_OPTIONS.map((option) => (
-          <Pressable
-            key={option.minutes}
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.option, pressed && styles.rowPressed]}
-            onPress={() => onPick(option.minutes)}>
-            <Text style={styles.optionText}>{option.label}</Text>
-          </Pressable>
-        ))}
-        {active && (
-          <Pressable accessibilityRole="button" style={({ pressed }) => [styles.option, pressed && styles.rowPressed]} onPress={() => onPick(0)}>
-            <Text style={[styles.optionText, { color: '#ff6482' }]}>Quitar temporizador</Text>
-          </Pressable>
-        )}
-        <Pressable accessibilityRole="button" style={({ pressed }) => [styles.option, pressed && styles.rowPressed]} onPress={onClose}>
-          <Text style={[styles.optionText, { color: colors.text2 }]}>Cancelar</Text>
-        </Pressable>
+      <View style={[styles.sleep, { bottom: insets.bottom + 12 }]} pointerEvents="box-none">
+        <Glass interactive={false} solid="#2a2242" style={styles.card}>
+          <View style={styles.cardHead}>
+            <Ionicons name="moon" size={20} color="#fff" />
+            <Text style={styles.cardTitle}>Apagar la radio en</Text>
+            {active && <Text style={styles.cardNote}>Quedan {minutesLeft} min</Text>}
+          </View>
+          {SLEEP_OPTIONS.map((option) => (
+            <Option key={option.minutes} label={option.label} onPress={() => onPick(option.minutes)} />
+          ))}
+          {active && <Option label="Quitar temporizador" color="#ff6482" onPress={() => onPick(0)} />}
+        </Glass>
+        <Glass interactive={false} solid="#2a2242" style={[styles.card, styles.cancel]}>
+          <Option first label="Cancelar" onPress={onClose} />
+        </Glass>
       </View>
     </Modal>
   );
@@ -163,9 +184,15 @@ const styles = StyleSheet.create({
   rowArtist: { color: colors.text2, fontSize: 14, marginTop: 1 },
   time: { color: colors.text3, fontSize: 13, fontVariant: ['tabular-nums'] },
   remove: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
-  card: { position: 'absolute', left: 12, right: 12, bottom: 0, padding: 8, borderRadius: 26, backgroundColor: '#2a2242' },
-  cardTitle: { paddingTop: 14, paddingBottom: 10, textAlign: 'center', color: colors.text2, fontSize: 14, fontWeight: '600' },
-  option: { paddingVertical: 15, borderRadius: 18, alignItems: 'center' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.32)' },
+  sleep: { position: 'absolute', alignSelf: 'center', width: '94%', maxWidth: 400, gap: 8 },
+  card: { borderRadius: 28, overflow: 'hidden' },
+  cancel: { borderRadius: 22 },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 22, paddingTop: 20, paddingBottom: 14 },
+  cardTitle: { flex: 1, color: '#fff', fontSize: 17, fontWeight: '700' },
+  cardNote: { color: colors.text2, fontSize: 14, fontVariant: ['tabular-nums'] },
+  option: { paddingVertical: 16, paddingHorizontal: 22, alignItems: 'center' },
+  optionLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.22)' },
+  optionPressed: { backgroundColor: 'rgba(255,255,255,0.12)' },
   optionText: { color: '#fff', fontSize: 17, fontWeight: '500' },
 });

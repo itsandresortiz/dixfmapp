@@ -3,11 +3,13 @@ import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
+  withDelay,
+  withSequence,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -25,23 +27,36 @@ export const tap = () => {
   if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 };
 
-/** Superficie translúcida: Liquid Glass donde existe, desenfoque en el resto de iOS y un velo en Android. */
-export function Glass({ style, children }: { style?: StyleProp<ViewStyle>; children?: ReactNode }) {
+/**
+ * Superficie translúcida: Liquid Glass donde existe, desenfoque en el resto de iOS
+ * y un velo en Android. `solid` es el color de Android para superficies grandes con texto.
+ */
+export function Glass({
+  style,
+  children,
+  interactive = true,
+  solid,
+}: {
+  style?: StyleProp<ViewStyle>;
+  children?: ReactNode;
+  interactive?: boolean;
+  solid?: string;
+}) {
   if (liquidGlass) {
     return (
-      <GlassView glassEffectStyle="regular" colorScheme="dark" isInteractive style={style}>
+      <GlassView glassEffectStyle="regular" colorScheme="dark" isInteractive={interactive} style={style}>
         {children}
       </GlassView>
     );
   }
   if (Platform.OS === 'ios') {
     return (
-      <BlurView tint="systemThinMaterialDark" intensity={60} style={[style, styles.clip]}>
+      <BlurView tint={interactive ? 'systemThinMaterialDark' : 'systemMaterialDark'} intensity={interactive ? 60 : 90} style={[style, styles.clip]}>
         {children}
       </BlurView>
     );
   }
-  return <View style={[style, { backgroundColor: colors.glass }]}>{children}</View>;
+  return <View style={[style, { backgroundColor: solid ?? colors.glass }]}>{children}</View>;
 }
 
 /** Botón que se encoge al tocarlo. */
@@ -109,6 +124,53 @@ export function Ambient({ art }: { art?: string }) {
   );
 }
 
+const introLogo = require('../assets/logo.png');
+
+/**
+ * Entrada: continúa la pantalla de inicio. El logo se encoge un instante, crece
+ * hasta salirse de la pantalla y deja ver la app, que llega asentándose desde atrás.
+ */
+export function Intro({ start, children }: { start: boolean; children: ReactNode }) {
+  const reduced = useReducedMotion();
+  const [done, setDone] = useState(false);
+  const logo = useSharedValue(1);
+  const veil = useSharedValue(1);
+  const content = useSharedValue(reduced ? 1 : 1.14);
+
+  useEffect(() => {
+    if (!start) return;
+    if (reduced) {
+      veil.value = withTiming(0, { duration: 350 });
+    } else {
+      logo.value = withSequence(
+        withTiming(0.8, { duration: 260, easing: Easing.out(Easing.cubic) }),
+        withTiming(46, { duration: 620, easing: Easing.in(Easing.exp) })
+      );
+      veil.value = withDelay(560, withTiming(0, { duration: 300, easing: Easing.out(Easing.quad) }));
+      content.value = withDelay(480, withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) }));
+    }
+    const timer = setTimeout(() => setDone(true), 1300);
+    return () => clearTimeout(timer);
+  }, [start, reduced, logo, veil, content]);
+
+  const contentStyle = useAnimatedStyle(() => ({ transform: [{ scale: content.value }] }));
+  const veilStyle = useAnimatedStyle(() => ({ opacity: veil.value }));
+  const logoStyle = useAnimatedStyle(() => ({ transform: [{ scale: logo.value }] }));
+
+  return (
+    <View style={styles.introRoot}>
+      <Animated.View style={[styles.introRoot, contentStyle]}>{children}</Animated.View>
+      {!done && (
+        <Animated.View style={[StyleSheet.absoluteFill, styles.veil, veilStyle]} pointerEvents="none">
+          <Animated.View style={logoStyle}>
+            <Image source={introLogo} style={styles.introLogo} contentFit="contain" />
+          </Animated.View>
+        </Animated.View>
+      )}
+    </View>
+  );
+}
+
 const BARS = 40;
 
 function Bar({ index, clock, level }: { index: number; clock: SharedValue<number>; level: SharedValue<number> }) {
@@ -150,6 +212,10 @@ export function Waveform({ active }: { active: boolean }) {
 
 const styles = StyleSheet.create({
   clip: { overflow: 'hidden' },
+  introRoot: { flex: 1, backgroundColor: colors.ink },
+  veil: { backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  // Mismo tamaño que el logo de la pantalla de inicio (220 de ancho, logo al 78 %).
+  introLogo: { width: 172, height: 68 },
   disabled: { opacity: 0.35 },
   ambient: { backgroundColor: colors.ink, overflow: 'hidden' },
   wave: { height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

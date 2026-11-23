@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,7 +12,7 @@ import { SleepSheet, SongsSheet } from './src/Sheets';
 import { STATION, TAGLINE, colors, fonts } from './src/config';
 import { useNowPlaying } from './src/nowPlaying';
 import { useRadio, type RadioState } from './src/useRadio';
-import { Ambient, Glass, Press, Waveform } from './src/ui';
+import { Ambient, Glass, Intro, Press, Waveform } from './src/ui';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -50,7 +50,7 @@ function Player() {
     coverScale.value = withSpring(radio.state === 'playing' ? 1 : 0.82, { damping: 14, stiffness: 120 });
   }, [radio.state, coverScale]);
   const coverStyle = useAnimatedStyle(() => ({ transform: [{ scale: coverScale.value }] }));
-  const coverSize = Math.max(0, Math.min(coverBox.width, coverBox.height - 24, 440));
+  const coverSize = Math.max(0, Math.min(coverBox.width, coverBox.height - 24, 520));
 
   // Temporizador de apagado
   const { stop } = radio;
@@ -82,110 +82,172 @@ function Player() {
 
   const busy = radio.state === 'loading' || radio.state === 'error';
 
+  const { width, height } = useWindowDimensions();
+  const landscape = width > height;
+  const roomy = landscape && height >= 600; // tabletas: el contenido se agrupa en el centro
+
+  const brand = <Image source={logoWhite} style={styles.brand} contentFit="contain" accessibilityLabel={STATION} accessibilityRole="header" />;
+
+  const status = (
+    <View style={styles.status} accessibilityRole="text" accessibilityLiveRegion="polite">
+      <View
+        style={[
+          styles.dot,
+          radio.state === 'playing' && { backgroundColor: colors.live },
+          radio.state === 'error' && { backgroundColor: '#ffb340' },
+        ]}
+      />
+      <Text style={[styles.statusText, radio.state === 'playing' && { color: '#fff' }]}>{STATUS_TEXT[radio.state]}</Text>
+    </View>
+  );
+
+  const cover = (
+    <View style={styles.coverBox} onLayout={(e) => setCoverBox(e.nativeEvent.layout)}>
+      <Animated.View style={[styles.cover, { width: coverSize, height: coverSize, borderRadius: coverSize * 0.09 }, coverStyle]}>
+        <View style={[styles.coverInner, { borderRadius: coverSize * 0.09 }]}>
+          <Image source={logo} style={styles.coverLogo} contentFit="contain" />
+          <Image
+            source={song?.art ? { uri: song.art } : null}
+            placeholder={song?.thumb ? { uri: song.thumb } : null}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={500}
+          />
+        </View>
+      </Animated.View>
+    </View>
+  );
+
+  const meta = (
+    <View style={styles.meta}>
+      <Animated.View key={song?.key ?? 'station'} entering={FadeIn.duration(450)} style={styles.metaText}>
+        <Text style={styles.title} numberOfLines={2}>
+          {song?.title ?? STATION}
+        </Text>
+        <Text style={styles.artist} numberOfLines={1}>
+          {song?.artist ?? TAGLINE}
+        </Text>
+      </Animated.View>
+      <Press
+        onPress={() => song && toggleFav(song)}
+        disabled={!song}
+        selected={isFav}
+        label={isFav ? 'Quitar de favoritas' : 'Guardar en favoritas'}
+        style={styles.heart}>
+        <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={28} color={isFav ? colors.live : '#fff'} />
+      </Press>
+    </View>
+  );
+
+  const controls = (
+    <View style={styles.controls}>
+      <Press onPress={() => setSleepOpen(true)} label={sleepAt ? `Temporizador: quedan ${minutesLeft} minutos` : 'Temporizador de apagado'}>
+        <Glass style={styles.round}>
+          <Ionicons name="moon-outline" size={23} color="#fff" />
+        </Glass>
+        {sleepAt > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{minutesLeft}</Text>
+          </View>
+        )}
+      </Press>
+
+      <Press onPress={radio.toggle} label={active ? 'Pausar' : 'Reproducir'} style={[styles.play, landscape && styles.playLand]}>
+        {busy ? (
+          <ActivityIndicator color={colors.ink} size="large" />
+        ) : (
+          <Ionicons name={active ? 'pause' : 'play'} size={landscape ? 32 : 38} color={colors.ink} style={!active && styles.playNudge} />
+        )}
+      </Press>
+
+      <Press onPress={share} label="Compartir">
+        <Glass style={styles.round}>
+          <Ionicons name={Platform.OS === 'ios' ? 'share-outline' : 'share-social-outline'} size={23} color="#fff" />
+        </Glass>
+      </Press>
+    </View>
+  );
+
+  const songs = (
+    <Press onPress={() => setSongsOpen(true)} label="Canciones" style={landscape ? undefined : styles.songsWrap}>
+      <Glass style={[styles.songs, landscape && styles.songsLand]}>
+        <Text style={styles.songsText}>Canciones</Text>
+      </Glass>
+    </Press>
+  );
+
   return (
     <View style={styles.root}>
       <Ambient art={song?.thumb} />
 
-      <View style={[styles.screen, { paddingTop: insets.top + 6, paddingBottom: insets.bottom + 12 }]}>
-        <View style={styles.top}>
-          <Image source={logoWhite} style={styles.brand} contentFit="contain" accessibilityLabel={STATION} accessibilityRole="header" />
-          <View style={styles.status} accessibilityRole="text" accessibilityLiveRegion="polite">
-            <View
-              style={[
-                styles.dot,
-                radio.state === 'playing' && { backgroundColor: colors.live },
-                radio.state === 'error' && { backgroundColor: '#ffb340' },
-              ]}
-            />
-            <Text style={[styles.statusText, radio.state === 'playing' && { color: '#fff' }]}>{STATUS_TEXT[radio.state]}</Text>
+      {landscape ? (
+        // Horizontal: carátula a la izquierda, todo lo demás en una columna a la derecha.
+        <View
+          style={[
+            styles.land,
+            {
+              paddingTop: insets.top + 14,
+              paddingBottom: insets.bottom + 14,
+              paddingLeft: Math.max(insets.left, 28),
+              paddingRight: Math.max(insets.right, 28),
+            },
+          ]}>
+          {cover}
+          <View style={styles.landSide}>
+            <View style={styles.landTop}>
+              {brand}
+              {songs}
+            </View>
+            <View style={styles.landMiddle}>
+              {status}
+              {meta}
+              <Waveform active={radio.state === 'playing'} />
+              {roomy && controls}
+            </View>
+            {!roomy && controls}
           </View>
         </View>
-
-        <View style={styles.coverBox} onLayout={(e) => setCoverBox(e.nativeEvent.layout)}>
-          <Animated.View style={[styles.cover, { width: coverSize, height: coverSize, borderRadius: coverSize * 0.09 }, coverStyle]}>
-            <View style={[styles.coverInner, { borderRadius: coverSize * 0.09 }]}>
-              <Image source={logo} style={styles.coverLogo} contentFit="contain" />
-              <Image source={song?.art ? { uri: song.art } : null} placeholder={song?.thumb ? { uri: song.thumb } : null} style={StyleSheet.absoluteFill} contentFit="cover" transition={500} />
-            </View>
-          </Animated.View>
+      ) : (
+        <View style={[styles.screen, { paddingTop: insets.top + 6, paddingBottom: insets.bottom + 12 }]}>
+          <View style={styles.top}>
+            {brand}
+            {status}
+          </View>
+          {cover}
+          {meta}
+          <Waveform active={radio.state === 'playing'} />
+          {controls}
+          {songs}
         </View>
-
-        <View style={styles.meta}>
-          <Animated.View key={song?.key ?? 'station'} entering={FadeIn.duration(450)} style={styles.metaText}>
-            <Text style={styles.title} numberOfLines={2}>
-              {song?.title ?? STATION}
-            </Text>
-            <Text style={styles.artist} numberOfLines={1}>
-              {song?.artist ?? TAGLINE}
-            </Text>
-          </Animated.View>
-          <Press
-            onPress={() => song && toggleFav(song)}
-            disabled={!song}
-            selected={isFav}
-            label={isFav ? 'Quitar de favoritas' : 'Guardar en favoritas'}
-            style={styles.heart}>
-            <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={28} color={isFav ? colors.live : '#fff'} />
-          </Press>
-        </View>
-
-        <Waveform active={radio.state === 'playing'} />
-
-        <View style={styles.controls}>
-          <Press
-            onPress={() => setSleepOpen(true)}
-            label={sleepAt ? `Temporizador: quedan ${minutesLeft} minutos` : 'Temporizador de apagado'}>
-            <Glass style={styles.round}>
-              <Ionicons name="moon-outline" size={23} color="#fff" />
-            </Glass>
-            {sleepAt > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{minutesLeft}</Text>
-              </View>
-            )}
-          </Press>
-
-          <Press onPress={radio.toggle} label={active ? 'Pausar' : 'Reproducir'} style={styles.play}>
-            {busy ? (
-              <ActivityIndicator color={colors.ink} size="large" />
-            ) : (
-              <Ionicons name={active ? 'pause' : 'play'} size={38} color={colors.ink} style={!active && styles.playNudge} />
-            )}
-          </Press>
-
-          <Press onPress={share} label="Compartir">
-            <Glass style={styles.round}>
-              <Ionicons name={Platform.OS === 'ios' ? 'share-outline' : 'share-social-outline'} size={23} color="#fff" />
-            </Glass>
-          </Press>
-        </View>
-
-        <Press onPress={() => setSongsOpen(true)} label="Canciones" style={styles.songsWrap}>
-          <Glass style={styles.songs}>
-            <Text style={styles.songsText}>Canciones</Text>
-          </Glass>
-        </Press>
-      </View>
+      )}
 
       <SongsSheet visible={songsOpen} onClose={() => setSongsOpen(false)} history={history} favs={favs} onRemoveFav={toggleFav} />
-      <SleepSheet visible={sleepOpen} active={sleepAt > 0} onPick={pickSleep} onClose={() => setSleepOpen(false)} />
+      <SleepSheet visible={sleepOpen} active={sleepAt > 0} minutesLeft={minutesLeft} onPick={pickSleep} onClose={() => setSleepOpen(false)} />
     </View>
   );
 }
 
 export default function App() {
   const [loaded, error] = useFonts({ BricolageGrotesque_700Bold });
+  const [introStart, setIntroStart] = useState(false);
+  const ready = loaded || !!error;
 
   useEffect(() => {
-    if (loaded || error) SplashScreen.hideAsync().catch(() => {});
-  }, [loaded, error]);
+    if (!ready) return;
+    // La animación de entrada arranca justo al retirarse la pantalla de inicio.
+    SplashScreen.hideAsync()
+      .catch(() => {})
+      .finally(() => setIntroStart(true));
+  }, [ready]);
 
-  if (!loaded && !error) return null;
+  if (!ready) return null;
 
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <Player />
+      <Intro start={introStart}>
+        <Player />
+      </Intro>
     </SafeAreaProvider>
   );
 }
@@ -193,6 +255,12 @@ export default function App() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ink },
   screen: { flex: 1, width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 28 },
+  land: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 32, width: '100%', maxWidth: 1180, alignSelf: 'center' },
+  landSide: { flex: 1.15, minWidth: 0, maxWidth: 560 },
+  landTop: { height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  landMiddle: { flex: 1, justifyContent: 'center', gap: 8 },
+  playLand: { width: 72, height: 72, borderRadius: 36 },
+  songsLand: { paddingVertical: 9, paddingHorizontal: 18 },
   top: { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brand: { width: 76, height: 30 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 8 },
