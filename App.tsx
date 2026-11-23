@@ -47,14 +47,17 @@ function Player() {
     if (url && /^dixfm:\/\/play/.test(url)) play();
   }, [url, play]);
 
-  // El widget muestra la canción y su carátula mientras suena; en pausa invita a escuchar.
+  // El widget muestra la última canción con su carátula; indica "En vivo" solo mientras suena.
+  // Se refresca con cada canción y, mientras suena, cada pocos minutos.
+  const [widgetTick, setWidgetTick] = useState(0);
   useEffect(() => {
-    updateWidget(
-      active
-        ? { title: song?.title ?? STATION, artist: song?.artist ?? TAGLINE, live: true, artUrl: song?.art }
-        : { title: STATION, artist: 'Toca para escuchar en vivo', live: false }
-    );
-  }, [active, song?.title, song?.artist, song?.art]);
+    if (!active) return;
+    const timer = setInterval(() => setWidgetTick((n) => n + 1), 4 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [active]);
+  useEffect(() => {
+    updateWidget({ title: song?.title ?? STATION, artist: song?.artist ?? TAGLINE, live: active, artUrl: song?.art });
+  }, [active, song?.title, song?.artist, song?.art, widgetTick]);
 
   const [songsOpen, setSongsOpen] = useState(false);
   const [sleepOpen, setSleepOpen] = useState(false);

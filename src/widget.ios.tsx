@@ -1,5 +1,18 @@
-import { HStack, Image, Spacer, Text, VStack } from '@expo/ui/swift-ui';
-import { clipShape, containerBackground, font, foregroundStyle, frame, lineLimit, resizable, widgetURL } from '@expo/ui/swift-ui/modifiers';
+import { Background, HStack, Image, Spacer, Text, VStack } from '@expo/ui/swift-ui';
+import {
+  blur,
+  brightness,
+  clipShape,
+  containerBackground,
+  font,
+  foregroundStyle,
+  frame,
+  lineLimit,
+  resizable,
+  saturation,
+  shadow,
+  widgetURL,
+} from '@expo/ui/swift-ui/modifiers';
 import { Asset } from 'expo-asset';
 import { Directory, File } from 'expo-file-system';
 import { createWidget, widgetsDirectory, type WidgetEnvironment } from 'expo-widgets';
@@ -11,7 +24,7 @@ type Props = { title: string; artist: string; live: boolean; art?: string; logo?
 const DixWidget = (props: Props, environment: WidgetEnvironment) => {
   'widget';
   const family = environment.widgetFamily;
-  const muted = '#c4bfe0';
+  const soft = '#e6e2f5';
   const open = widgetURL('dixfm://play'); // tocar el widget abre la app y empieza a sonar
 
   // Pantalla de bloqueo: solo texto, lo tiñe el sistema.
@@ -29,96 +42,107 @@ const DixWidget = (props: Props, environment: WidgetEnvironment) => {
     );
   }
 
-  const background = containerBackground(
-    { type: 'linearGradient', colors: ['#4a2fb5', '#241656', '#0d0820'], startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 } },
+  // Con carátula, el fondo es la propia carátula muy desenfocada; sin ella, los colores de la marca.
+  const base = containerBackground(
+    props.art
+      ? '#0d0820'
+      : { type: 'linearGradient', colors: ['#5b3fd6', '#2a1a66', '#0d0820'], startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 } },
     'widget'
   );
+  const backdrop = props.art ? (
+    <Image uiImage={props.art} modifiers={[resizable(), frame({ width: 460, height: 460 }), blur(42), saturation(1.35), brightness(-0.22)]} />
+  ) : (
+    <Spacer />
+  );
 
-  const live = (
+  const cover = (side: number, radius: number) =>
+    props.art ? (
+      <Image
+        uiImage={props.art}
+        modifiers={[resizable(), frame({ width: side, height: side }), clipShape('roundedRectangle', radius), shadow({ radius: 10, y: 5, color: '#00000066' })]}
+      />
+    ) : (
+      <Image systemName="play.circle.fill" size={side * 0.82} color="#ffffff" modifiers={[frame({ width: side, height: side })]} />
+    );
+
+  const brand = props.logo ? <Image uiImage={props.logo} modifiers={[resizable(), frame({ width: 48, height: 19 })]} /> : <Spacer />;
+
+  const status = (
     <HStack spacing={5}>
-      <Image systemName="dot.radiowaves.left.and.right" size={12} color={props.live ? '#ff375f' : muted} />
-      <Text modifiers={[font({ size: 12, weight: 'semibold' }), foregroundStyle(props.live ? '#ffffff' : muted)]}>
-        {props.live ? 'En vivo' : 'Radio'}
-      </Text>
+      <Image systemName={props.live ? 'dot.radiowaves.left.and.right' : 'play.fill'} size={11} color={props.live ? '#ff5c7c' : '#ffffff'} />
+      <Text modifiers={[font({ size: 12, weight: 'semibold' }), foregroundStyle('#ffffff')]}>{props.live ? 'En vivo' : 'Escuchar'}</Text>
     </HStack>
   );
 
-  const brand = props.logo ? (
-    <Image uiImage={props.logo} modifiers={[resizable(), frame({ width: 46, height: 18 })]} />
-  ) : (
-    <Text modifiers={[font({ size: 15, weight: 'heavy' }), foregroundStyle('#ffffff')]}>Dix FM</Text>
-  );
-
-  const art = (side: number, radius: number) =>
-    props.art ? (
-      <Image uiImage={props.art} modifiers={[resizable(), frame({ width: side, height: side }), clipShape('roundedRectangle', radius)]} />
-    ) : (
-      <Image systemName="play.circle.fill" size={side * 0.8} color="#ffffff" modifiers={[frame({ width: side, height: side })]} />
-    );
-
-  if (family === 'systemSmall') {
-    return (
-      <VStack alignment="leading" spacing={2} modifiers={[background, open]}>
-        <HStack>
-          {art(50, 11)}
-          <Spacer />
-          <VStack alignment="trailing" spacing={6}>
-            {brand}
-            {live}
-          </VStack>
-        </HStack>
-        <Spacer />
-        <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundStyle('#ffffff'), lineLimit(2)]}>{props.title}</Text>
-        <Text modifiers={[font({ size: 12 }), foregroundStyle(muted), lineLimit(1)]}>{props.artist}</Text>
-      </VStack>
-    );
-  }
-
-  const big = family === 'systemLarge';
-  const text = (
-    <VStack alignment="leading" spacing={3}>
-      <HStack>
-        {brand}
-        <Spacer />
-        {live}
-      </HStack>
-      <Spacer />
-      <Text modifiers={[font({ size: big ? 24 : 19, weight: 'bold' }), foregroundStyle('#ffffff'), lineLimit(2)]}>{props.title}</Text>
-      <Text modifiers={[font({ size: big ? 16 : 14 }), foregroundStyle(muted), lineLimit(1)]}>{props.artist}</Text>
-      <Spacer />
-      <HStack spacing={6}>
-        <Image systemName="play.fill" size={12} color="#ffffff" />
-        <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle('#ffffff')]}>
-          {props.live ? 'Sonando ahora' : 'Escuchar en vivo'}
-        </Text>
-      </HStack>
+  const titles = (titleSize: number, artistSize: number) => (
+    <VStack alignment="leading" spacing={2}>
+      <Text modifiers={[font({ size: titleSize, weight: 'bold' }), foregroundStyle('#ffffff'), lineLimit(2)]}>{props.title}</Text>
+      <Text modifiers={[font({ size: artistSize }), foregroundStyle(soft), lineLimit(1)]}>{props.artist}</Text>
     </VStack>
   );
 
-  if (big) {
-    return (
-      <VStack alignment="leading" spacing={14} modifiers={[background, open]}>
+  let content;
+  if (family === 'systemSmall') {
+    content = (
+      <VStack alignment="leading" spacing={6}>
+        <HStack>
+          {cover(58, 12)}
+          <Spacer />
+          <VStack alignment="trailing" spacing={0}>
+            {brand}
+            <Spacer />
+          </VStack>
+        </HStack>
+        <Spacer />
+        {status}
+        {titles(15, 12)}
+      </VStack>
+    );
+  } else if (family === 'systemLarge') {
+    content = (
+      <VStack alignment="leading" spacing={12}>
+        <HStack>
+          {status}
+          <Spacer />
+          {brand}
+        </HStack>
         <HStack>
           <Spacer />
-          {art(190, 22)}
+          {cover(196, 22)}
           <Spacer />
         </HStack>
-        {text}
+        <Spacer />
+        {titles(22, 16)}
       </VStack>
+    );
+  } else {
+    content = (
+      <HStack spacing={14}>
+        {cover(122, 18)}
+        <VStack alignment="leading" spacing={4}>
+          <HStack>
+            {status}
+            <Spacer />
+            {brand}
+          </HStack>
+          <Spacer />
+          {titles(18, 14)}
+        </VStack>
+      </HStack>
     );
   }
 
   return (
-    <HStack spacing={14} modifiers={[background, open]}>
-      {art(118, 18)}
-      {text}
-    </HStack>
+    <Background modifiers={[base, open]}>
+      {content}
+      <Background.Content>{backdrop}</Background.Content>
+    </Background>
   );
 };
 
 const widget = createWidget<Props>('DixFM', DixWidget, {
   title: 'Dix FM',
-  artist: 'Toca para escuchar en vivo',
+  artist: 'Radio en vivo',
   live: false,
 });
 
@@ -158,20 +182,31 @@ async function ensureArt(url?: string) {
   }
 }
 
+const STALE_MS = 10 * 60 * 1000;
+
 export function updateWidget(state: WidgetState) {
   const ticket = ++latest;
   // 300 px bastan para el widget y respetan su límite de memoria.
   const artUrl = state.artUrl?.replace('600x600', '300x300');
   const push = () => {
     if (ticket !== latest) return;
+    const props: Props = {
+      title: state.title,
+      artist: state.artist,
+      live: state.live,
+      art: art && art.url === artUrl ? art.path : undefined,
+      logo: logoPath,
+    };
     try {
-      widget.updateSnapshot({
-        title: state.title,
-        artist: state.artist,
-        live: state.live,
-        art: art && art.url === artUrl ? art.path : undefined,
-        logo: logoPath,
-      });
+      if (state.live) {
+        // Si la app se cierra mientras suena, el widget deja de decir "En vivo" a los 10 minutos.
+        widget.updateTimeline([
+          { date: new Date(), props },
+          { date: new Date(Date.now() + STALE_MS), props: { ...props, live: false } },
+        ]);
+      } else {
+        widget.updateSnapshot(props);
+      }
     } catch {
       // Sin extensión de widget (por ejemplo, en desarrollo).
     }
