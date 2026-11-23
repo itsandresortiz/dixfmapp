@@ -183,6 +183,11 @@ async function ensureArt(url?: string) {
 }
 
 const STALE_MS = 10 * 60 * 1000;
+let lastError = '';
+let lastPushed = '';
+const note = (where: string) => (error: unknown) => {
+  lastError = `${where}: ${error instanceof Error ? error.message : String(error)}`;
+};
 
 export function updateWidget(state: WidgetState) {
   const ticket = ++latest;
@@ -190,13 +195,10 @@ export function updateWidget(state: WidgetState) {
   const artUrl = state.artUrl?.replace('600x600', '300x300');
   const push = () => {
     if (ticket !== latest) return;
-    const props: Props = {
-      title: state.title,
-      artist: state.artist,
-      live: state.live,
-      art: art && art.url === artUrl ? art.path : undefined,
-      logo: logoPath,
-    };
+    // Solo claves con valor: el almacén compartido con el widget no admite valores vacíos.
+    const props: Props = { title: state.title, artist: state.artist, live: state.live };
+    if (art && art.url === artUrl) props.art = art.path;
+    if (logoPath) props.logo = logoPath;
     try {
       if (state.live) {
         // Si la app se cierra mientras suena, el widget deja de decir "En vivo" a los 10 minutos.
@@ -207,10 +209,27 @@ export function updateWidget(state: WidgetState) {
       } else {
         widget.updateSnapshot(props);
       }
-    } catch {
-      // Sin extensión de widget (por ejemplo, en desarrollo).
+      lastPushed = JSON.stringify(props);
+    } catch (error) {
+      note('actualizar')(error);
     }
   };
   push();
-  Promise.all([ensureLogo().catch(() => {}), ensureArt(artUrl).catch(() => {})]).then(push);
+  Promise.all([ensureLogo().catch(note('logo')), ensureArt(artUrl).catch(note('carátula'))]).then(push);
+}
+
+/** Estado del widget para diagnosticar por qué no se actualiza. */
+export async function widgetDiagnostics() {
+  let stored = '?';
+  try {
+    stored = JSON.stringify(await widget.getTimeline());
+  } catch (error) {
+    stored = `error: ${error instanceof Error ? error.message : String(error)}`;
+  }
+  return [
+    `Carpeta compartida: ${widgetsDirectory ?? 'ninguna'}`,
+    `Último envío: ${lastPushed || 'ninguno'}`,
+    `Guardado: ${stored}`,
+    `Último error: ${lastError || 'ninguno'}`,
+  ].join('\n\n');
 }

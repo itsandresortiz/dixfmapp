@@ -5,7 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import * as Linking from 'expo-linking';
-import { ActivityIndicator, Platform, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,7 +15,7 @@ import { STATION, TAGLINE, colors, fonts } from './src/config';
 import { useNowPlaying } from './src/nowPlaying';
 import { useRadio, type RadioState } from './src/useRadio';
 import { Ambient, ArtStack, Glass, Intro, Press, Waveform, useHeld } from './src/ui';
-import { updateWidget } from './src/widget';
+import { updateWidget, widgetDiagnostics } from './src/widget';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -108,7 +108,12 @@ function Player() {
 
   const busy = radio.state === 'loading' || radio.state === 'error';
 
-  const brand = <Image source={logoWhite} style={styles.brand} contentFit="contain" accessibilityLabel={STATION} accessibilityRole="header" />;
+  // Mantener pulsado el logo 2 segundos muestra el diagnóstico del widget.
+  const brand = (
+    <Pressable delayLongPress={2000} onLongPress={() => widgetDiagnostics().then((text) => Alert.alert('Widget', text))}>
+      <Image source={logoWhite} style={styles.brand} contentFit="contain" accessibilityLabel={STATION} accessibilityRole="header" />
+    </Pressable>
+  );
 
   const status = (
     <View style={styles.status} accessibilityRole="text" accessibilityLiveRegion="polite">
