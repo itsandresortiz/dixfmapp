@@ -1,16 +1,12 @@
 #!/bin/bash
-# Compila Dix FM para iOS y la envía a TestFlight, todo por terminal.
-# Requiere un Mac con Xcode instalado (no hace falta abrirlo) y que el
-# identificador com.dixfm.app exista en App Store Connect.
+# Compila Dix FM para iOS por terminal (Xcode instalado, sin abrirlo).
 #
-#   ./scripts/build-ios.sh
+#   ./scripts/build-ios.sh            -> deja el .ipa en build/ipa/ para Transporter
+#   UPLOAD=1 ./scripts/build-ios.sh   -> además lo envía a TestFlight (clave de API)
 #
-# La primera vez pregunta tus datos de Apple y los guarda en .ios-build.env
-# (fuera de git) para no volver a pedirlos. Necesitas una clave de API de
-# App Store Connect (Usuarios y acceso > Integraciones, acceso Admin) con su
-# archivo AuthKey_XXXXXXXXXX.p8 en la carpeta Descargas.
-#
-# Con UPLOAD=0 no la envía: deja el .ipa en build/ipa/ para Transporter.
+# Firma con la cuenta de Apple Developer que ya tengas configurada en este Mac.
+# El Team ID se detecta de tus certificados; si no puede, lo pregunta una vez
+# y lo guarda en .ios-build.env (fuera de git).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -26,42 +22,47 @@ ask() { # ask VARIABLE "pregunta"
   printf -v "$1" '%s' "$value"
 }
 
-# Clave de API: se busca sola en Descargas.
-if [ -z "${ASC_KEY_PATH:-}" ]; then
-  ASC_KEY_PATH=$(ls -t "$HOME"/Downloads/AuthKey_*.p8 2>/dev/null | head -1 || true)
-  if [ -n "$ASC_KEY_PATH" ]; then
-    echo "Clave de API encontrada: $ASC_KEY_PATH"
-  else
-    echo "No hay ningún archivo AuthKey_*.p8 en Descargas."
-    echo "Créalo en App Store Connect > Usuarios y acceso > Integraciones > API de App Store Connect."
-    read -r -p "Arrastra aquí el archivo .p8 y pulsa Enter: " ASC_KEY_PATH
-    ASC_KEY_PATH="${ASC_KEY_PATH//\\ / }"
-    ASC_KEY_PATH="${ASC_KEY_PATH%"${ASC_KEY_PATH##*[![:space:]]}"}"
+# Team ID: va entre paréntesis en el nombre de tus certificados de distribución.
+if [ -z "${APPLE_TEAM_ID:-}" ]; then
+  TEAMS=$(security find-identity -v -p codesigning 2>/dev/null | grep Distribution | sed -n 's/.*(\([A-Z0-9]\{10\}\))".*/\1/p' | sort -u)
+  if [ "$(printf '%s\n' "$TEAMS" | grep -c .)" = "1" ]; then
+    APPLE_TEAM_ID="$TEAMS"
+    echo "Team ID detectado: $APPLE_TEAM_ID"
+  elif [ -n "$TEAMS" ]; then
+    echo "Hay certificados de varios equipos en este Mac:"
+    security find-identity -v -p codesigning | grep Distribution | sed -n 's/.*"\(.*\)".*/  \1/p' | sort -u
   fi
 fi
-ASC_KEY_PATH="${ASC_KEY_PATH/#\~/$HOME}"
-[ -f "$ASC_KEY_PATH" ] || { echo "No existe el archivo de clave: $ASC_KEY_PATH" >&2; exit 1; }
-
-# El ID de clave va en el nombre del archivo: AuthKey_<ID>.p8
-if [ -z "${ASC_KEY_ID:-}" ]; then
-  ASC_KEY_ID=$(basename "$ASC_KEY_PATH" .p8)
-  ASC_KEY_ID="${ASC_KEY_ID#AuthKey_}"
-fi
-ask ASC_ISSUER_ID "Issuer ID (código largo con guiones, encima de la lista de claves en App Store Connect)"
 ask APPLE_TEAM_ID "Team ID (10 caracteres, en developer.apple.com > Cuenta > Membresía)"
 export APPLE_TEAM_ID
 
-cat > "$CONFIG" <<ENV
-APPLE_TEAM_ID="$APPLE_TEAM_ID"
-ASC_KEY_ID="$ASC_KEY_ID"
-ASC_ISSUER_ID="$ASC_ISSUER_ID"
-ASC_KEY_PATH="$ASC_KEY_PATH"
-ENV
+AUTH=()
+DESTINATION=export
+if [ "${UPLOAD:-0}" = "1" ]; then
+  # Envío directo: necesita una clave de API de App Store Connect.
+  if [ -z "${ASC_KEY_PATH:-}" ]; then
+    ASC_KEY_PATH=$(ls -t "$HOME"/Downloads/AuthKey_*.p8 "$HOME"/.appstoreconnect/private_keys/AuthKey_*.p8 "$HOME"/private_keys/AuthKey_*.p8 2>/dev/null | head -1 || true)
+    [ -n "$ASC_KEY_PATH" ] && echo "Clave de API encontrada: $ASC_KEY_PATH"
+  fi
+  ask ASC_KEY_PATH "Ruta del archivo AuthKey_XXXXXXXXXX.p8"
+  ASC_KEY_PATH="${ASC_KEY_PATH/#\~/$HOME}"
+  [ -f "$ASC_KEY_PATH" ] || { echo "No existe el archivo de clave: $ASC_KEY_PATH" >&2; exit 1; }
+  if [ -z "${ASC_KEY_ID:-}" ]; then
+    ASC_KEY_ID=$(basename "$ASC_KEY_PATH" .p8)
+    ASC_KEY_ID="${ASC_KEY_ID#AuthKey_}"
+  fi
+  ask ASC_ISSUER_ID "Issuer ID (encima de la lista de claves en App Store Connect)"
+  AUTH=(-authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+  DESTINATION=upload
+fi
 
-AUTH=(-authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
-
-DESTINATION=upload
-[ "${UPLOAD:-1}" = "0" ] && DESTINATION=export
+{
+  echo "APPLE_TEAM_ID=\"$APPLE_TEAM_ID\""
+  [ -n "${ASC_KEY_PATH:-}" ] && echo "ASC_KEY_PATH=\"$ASC_KEY_PATH\""
+  [ -n "${ASC_KEY_ID:-}" ] && echo "ASC_KEY_ID=\"$ASC_KEY_ID\""
+  [ -n "${ASC_ISSUER_ID:-}" ] && echo "ASC_ISSUER_ID=\"$ASC_ISSUER_ID\""
+  true
+} > "$CONFIG"
 
 npm install
 npx expo prebuild --platform ios --clean
@@ -84,7 +85,7 @@ fi
 
 xcodebuild "${TARGET[@]}" -scheme "$SCHEME" -configuration Release \
   -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" \
-  -allowProvisioningUpdates "${AUTH[@]}" archive
+  -allowProvisioningUpdates ${AUTH[@]+"${AUTH[@]}"} archive
 
 cat > "$BUILD_DIR/ExportOptions.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -100,7 +101,7 @@ cat > "$BUILD_DIR/ExportOptions.plist" <<PLIST
 PLIST
 
 xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportPath "$BUILD_DIR/ipa" \
-  -exportOptionsPlist "$BUILD_DIR/ExportOptions.plist" -allowProvisioningUpdates "${AUTH[@]}"
+  -exportOptionsPlist "$BUILD_DIR/ExportOptions.plist" -allowProvisioningUpdates ${AUTH[@]+"${AUTH[@]}"}
 
 echo
 if [ "$DESTINATION" = "upload" ]; then

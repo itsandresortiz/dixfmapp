@@ -33,15 +33,21 @@ npx expo run:ios
 npx expo run:android
 ```
 
-## Compilar iOS y enviar a TestFlight
+## Compilar iOS
 
-Necesitas un Mac con Xcode instalado (no hace falta abrirlo), la app creada en App Store Connect con el ID de pack `com.dixfm.app` y una clave de API de App Store Connect (Usuarios y acceso > Integraciones, acceso Admin) descargada en Descargas.
+Necesitas un Mac con Xcode instalado (no hace falta abrirlo), tu cuenta de Apple Developer ya configurada para firmar y la app creada en App Store Connect con el ID de pack `com.dixfm.app`.
 
 ```bash
 ./scripts/build-ios.sh
 ```
 
-La primera vez pregunta el Issuer ID y el Team ID y los guarda en `.ios-build.env`. Al terminar, la compilación aparece en TestFlight cuando Apple la procesa. Con `UPLOAD=0` delante solo genera el `.ipa` en `build/ipa/` para subirlo con Transporter.
+Deja el `.ipa` en `build/ipa/` para subirlo con Transporter. El Team ID se detecta de tus certificados; si no puede, lo pregunta una vez.
+
+Para enviarlo directo a TestFlight con una clave de API de App Store Connect:
+
+```bash
+UPLOAD=1 ./scripts/build-ios.sh
+```
 
 Antes de cada subida nueva, aumenta `version` en `app.json` (o añade `ios.buildNumber`): App Store Connect rechaza números de compilación repetidos.
 
