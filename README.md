@@ -35,7 +35,15 @@ npx expo run:android
 
 ## Compilar iOS y subir con Transporter
 
-Necesitas un Mac con Xcode, tu cuenta de Apple Developer iniciada en Xcode (Settings > Accounts) y la app creada en App Store Connect con el ID de pack `com.dixfm.app`.
+Necesitas un Mac con Xcode instalado y la app creada en App Store Connect con el ID de pack `com.dixfm.app`. Todo se hace por terminal.
+
+Sin abrir Xcode, con una clave de API de App Store Connect (Usuarios y acceso > Integraciones, rol Admin):
+
+```bash
+APPLE_TEAM_ID=TU_TEAM_ID ASC_KEY_ID=ID_DE_CLAVE ASC_ISSUER_ID=ISSUER_ID ASC_KEY_PATH=~/Downloads/AuthKey_ID_DE_CLAVE.p8 ./scripts/build-ios.sh
+```
+
+O, si tu cuenta ya está iniciada en Xcode (Settings > Accounts):
 
 ```bash
 APPLE_TEAM_ID=TU_TEAM_ID ./scripts/build-ios.sh
