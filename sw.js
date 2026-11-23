@@ -1,7 +1,7 @@
 // Guarda la interfaz para que la app abra al instante y sin conexión.
 // El audio y los metadatos siempre van por red.
-const CACHE = 'dixfm-v1';
-const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest', 'fonts/bricolage.woff2', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'dixfm-v2';
+const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest', 'logo.svg', 'fonts/bricolage.woff2', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

@@ -27,7 +27,7 @@ Sube la carpeta a cualquier hosting estático con HTTPS (GitHub Pages, Netlify, 
 
 - Stream y nombre de la emisora: constantes al inicio de `app.js`.
 - Colores de marca: `--c1`, `--c2`, `--c3` en `styles.css` y `BRAND` en `app.js`.
-- Iconos: carpeta `icons/`.
+- Logo: `logo.svg`. Iconos: carpeta `icons/`.
 - Al cambiar archivos, sube el número de `CACHE` en `sw.js` para que los usuarios reciban la versión nueva.
 
 La tipografía es Bricolage Grotesque (SIL Open Font License 1.1).

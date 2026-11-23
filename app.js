@@ -228,7 +228,7 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) pollNow(); });
 
   // ── Carátula y color ─────────────────────────────────────────────────────
-  const BRAND = ['#5b2eff', '#ff3d77', '#ffa53b'];
+  const BRAND = ['#6f6bff', '#ff5a5f', '#00d9a3'];
   const root = document.documentElement;
   const setColors = (c) => c.forEach((v, i) => root.style.setProperty('--c' + (i + 1), v));
 
